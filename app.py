@@ -1,212 +1,29 @@
 # import important libraries
 import dash
+from dash_application.utils import *
 import dash_core_components as dcc
 import dash_html_components as html
-import pandas as pd
 from dash.dependencies import Input, Output
 from plotly import graph_objs as go
-from plotly.graph_objs import *
-
-
-# Load global data sets
-confirmed_global = pd.read_csv("https://data.humdata.org/hxlproxy/api/data-preview.csv?url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_confirmed_global.csv&filename=time_series_covid19_confirmed_global.csv")
-deaths_global = pd.read_csv("https://data.humdata.org/hxlproxy/api/data-preview.csv?url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_deaths_global.csv&filename=time_series_covid19_deaths_global.csv")
-recovered_global = pd.read_csv("https://data.humdata.org/hxlproxy/api/data-preview.csv?url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_recovered_global.csv&filename=time_series_covid19_recovered_global.csv")
-
-# Load global data set for development testing
-# confirmed_global = pd.read_csv("assets/time_series_covid19_confirmed_global.csv")
-# deaths_global = pd.read_csv("assets/time_series_covid19_deaths_global.csv")
-# recovered_global = pd.read_csv("assets/time_series_covid19_recovered_global.csv")
-
-# Load kenyan data set
-# confirmed_kenya = pd.read_csv("")
-# deaths_kenya = pd.read_csv("")
-# recovered_kenya = pd.read_csv("")
-
-# Load kenyan data set for development testing
-confirmed = pd.read_csv("assets/testdata.csv")
-confirmed = confirmed.fillna(0)
-
-
-# House keeping functions
-def get_kenya_first_case(dict_data):
-    # Takes input a dictionary of dates and the cases on that date
-    # Returns the date of the first case in kenya
-    for x in dict_data:
-        if dict_data[x] != 0:
-            return x
-
-
-def get_num_to_dates(selected):
-    # Inputs a selected county
-    # Returns a dict of dates and num of cases of county
-    y_axis = {}
-    dates = [i for i in confirmed.iloc[:]][4:]
-    for date in dates:
-        y = 0
-        for index, cout in enumerate(confirmed["County"]):
-            if cout == selected:
-                y += confirmed.loc[index, str(date)]
-        y_axis[date] = y
-    return y_axis
-
-
-def get_sub_num(selected):
-    # Inputs a selected sub-county
-    # Returns a dict of dates and num of cases of sub-county
-    data = {}
-    dates = [i for i in confirmed.iloc[:]][4:]
-    for date in dates:
-        for index, sub in enumerate(confirmed["Constituency"]):
-            if sub == selected:
-                data[date] = confirmed.loc[index, date]
-    return data
-
-
-def counties_with_constituencies():
-    # Returns a dict with counties -> subcounties -> Lat, Long
-    # {county
-    #       {
-    #       sub-county
-    #               {
-    #               "Lat": ""
-    #               "Long": ""
-    #               }
-    #       }
-    # }
-    counties_constituencies = {}
-    for county in confirmed["County"]:
-        for index, const in enumerate(confirmed["Constituency"]):
-            if county not in counties_constituencies:
-                counties_constituencies[county] = {}
-            if const not in counties_constituencies[county] and confirmed.loc[index, "County"] == county:
-                counties_constituencies[county][const] = {
-                    "Lat": confirmed.loc[index, "Lat"],
-                    "Long": confirmed.loc[index, "Long"]
-                }
-
-    return counties_constituencies
-
-
-def update_list_constituencies(county):
-    # Inputs a county
-    # Returns a list of all sub-counties in a county
-    all_const = counties_with_constituencies()
-    constituencies = [const for const in all_const[county]]
-    return constituencies
-
-
-def get_kenya_index_from_global(confirmed, deaths, recoveries):
-    # Takes pd data frames confirmed, deaths, recoveries
-    # Returns index of kenya from all the pd data frames
-    for index, country in enumerate(confirmed["Country/Region"]):
-        if country == "Kenya":
-            c_index = index
-    for index, country in enumerate(deaths["Country/Region"]):
-        if country == "Kenya":
-            d_index = index
-    for index, country in enumerate(recoveries["Country/Region"]):
-        if country == "Kenya":
-            r_index = index
-    return c_index, d_index, r_index
-
-
-def update_axes(county, sub_county):
-    # Inputs a selected county and sub-county
-    # Return lists of x-axis(dates), y-axis(values) for graph
-    if county is not None and sub_county is None:
-        # if county alone is chosen
-        dict_of_days_nums = get_num_to_dates(county)
-        x_axis = [y for y in dict_of_days_nums]
-        y_axis = []
-        for axis in x_axis:
-            y_axis.append(dict_of_days_nums[axis])
-    elif county and sub_county:
-        # if both county and sub-county are chosen
-        axes = get_sub_num(sub_county)
-        x_axis = [x for x in axes]
-        y_axis = []
-        for i in x_axis:
-            y_axis.append(axes[i])
-    elif not county and not sub_county:
-        # if neither county nor sub-county is chosen
-        c_index, _, _ = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
-        list_of_dates = [date for date in confirmed_global.iloc[:]][4:]
-        first_date = get_kenya_first_case(get_num_to_dates("Australia")) # Change later to kenya
-        y_axis = [i for i in confirmed_global.iloc[c_index, list_of_dates.index(first_date):]]
-        x_axis = [x for x in list_of_dates[list_of_dates.index(first_date):]]
-    return x_axis, y_axis
-
-
-def county_and_cases():
-    # Returns a dict of counties and the number of cases in the county
-    county_cases = {}
-    all_counties = counties_with_constituencies()
-    for county in all_counties:
-        _, num = update_axes(county, None)
-        county_cases[county] = sum(num)
-    return county_cases
-
-
-def country_and_cases():
-    # Returns a dict of coutries and the number of cases in the country
-    country_cases = {}
-    date = get_today(confirmed_global)
-    for index, country in enumerate(confirmed_global["Country/Region"]):
-        if country not in country_cases and pd.isnull(confirmed_global.loc[index, "Province/State"]):
-            country_cases[country] = confirmed_global.loc[index, date]
-        elif country not in country_cases and not pd.isnull(confirmed_global.loc[index, "Province/State"]):
-            country_cases[country + ", " + (confirmed_global.loc[index, "Province/State"])] = confirmed_global.loc[index, date]
-    return country_cases
-
-
-def get_global_results():
-    # Returns number of cases confirmed, recovered, died
-    init_c = init_d = init_r = 0
-    today_c, today_d, today_r = list(confirmed_global.head(0))[-1], list(deaths_global.head(0))[-1], list(recovered_global.head(0))[-1]
-    results_c, results_d, results_r = confirmed_global[today_c], deaths_global[today_d], recovered_global[today_r]
-
-    for con in results_c:
-        init_c += con
-        if con is None:
-            continue
-    for death in results_d:
-        init_d += death
-        if death is None:
-            continue
-    for recov in results_r:
-        init_r += recov
-        if recov is None:
-            continue
-
-    return init_c, init_d, init_r
-
-
-def get_today(csv_file):
-    # Takes in a pd data frame
-    # Returns the current date
-    latest_date = list(csv_file.head(0))[-1]
-    return latest_date
-
-
-def data_without_zeros(x, y):
-    # Inputs a list of x and y axis
-    # Returns x and y axis from when the first case was reported
-    for index, axis in enumerate(y):
-        if axis != 0:
-            break
-    return x[index:], y[index:]
-
+from collections import OrderedDict
 
 # Important variables set-up
 c_index, d_index, r_index = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
 counties_constituencies_coords = counties_with_constituencies()
 date = get_today(confirmed_global)
 cases_in_each_county = county_and_cases()
+ke_date = get_today(kenya_data)
 list_cases_in_each_county = []
 for case in cases_in_each_county.items():
     list_cases_in_each_county.append([case[0], case[1]])
 sorted_list = sorted(list_cases_in_each_county, key=lambda x: x[1], reverse=True)
+cases_in_each_country = country_and_cases()
+list_cases_in_each_country = []
+for cases_c in cases_in_each_country.items():
+    list_cases_in_each_country.append([cases_c[0], cases_c[1]])
+sorted_countries = sorted(list_cases_in_each_country, key=lambda x: x[1], reverse=True)
+with_text['Text'] = with_text['Country/Region'] + '<br>Cases: ' + (with_text[date]).astype(str)
+# ke_with_text['Text'] = ke_with_text['County'] + "<br>Cases " + (ke_with_text[date]).astype(str)
 
 # Some final house keeping set-ups :)
 app = dash.Dash(
@@ -258,8 +75,79 @@ app.layout = html.Div(
                     src=app.get_asset_url("logo1.png"),
                 ),
                 html.H1("CORONA VIRUS DISEASE KENYA DASHBOARD: HEAT MAP AND DATA ANALYSIS TOOL"),
+            ]
+        ),
+        html.Div(
+            className='row wrapper',
+            style={
+                "text-align": "center",
+                "display": "inherit",
+                "margin-bottom": "10px",
+            },
+            children=[
+                html.Div(
+                    className='row',
+                    style={
+                        "background": "#292929",
+                        "margin-left": "2%",
+                        "margin-right": "2%",
+                        "text-align": "center",
+                        "width": "80%",
+                        "display": "inline-block",
+                        "justify-content": "space-around",
+                        "overflow-x": "auto",
+                    },
+                    children=[
+                        html.Div(
+                            className='summary-heading',
+                            style={
+                                "display": "inline-block",
+                                "margin": "0 auto",
+                                "float": "left",
+                                "padding": "3px",
+                                "width": "20%",
+                            },
+                            children=[
+                                html.P("+0 in past 24hrs", className='hrs-24', id='c-hrs-element'),
+                                html.H1("0", className='cases-num', id='cases-element'),
+                                html.P("CASES", className='cases-text'),
+                            ]
+                        ),
+                        html.Div(
+                            className='summary-heading',
+                            style={
+                                "display": "inline-block",
+                                "margin": "0 auto",
+                                "padding": "3px",
+                                "float": "center",
+                                "width": "20%"
+                            },
+                            children=[
+                                html.P("+ 24 in past 24hrs", className='hrs-24', id="r-hrs-element"),
+                                html.H1("0", className='recovered-num', id='recovered-element'),
+                                html.P("RECOVERIES", className='recovered-text'),
+                            ]
+                        ),
+                        html.Div(
+                            className='summary-heading',
+                            style={
+                                "display": "inline-block",
+                                "padding": "3px",
+                                "margin": "0 auto",
+                                "float": "right",
+                                "width": "20%"
+                            },
+                            children=[
+                                html.P("+ 24 in past 24hrs", className='hrs-24', id='d-hrs-element'),
+                                html.H1("0", className='deaths-num', id='deaths-element'),
+                                html.P("DEATHS", className='deaths-text'),
+                            ]
+                        ),
+                    ]
+                ),
 
             ]
+
         ),
         html.Div(
             className='row',
@@ -267,18 +155,33 @@ app.layout = html.Div(
                 # Column for user control
                 html.Div(
                     className="four columns div-user-controls",
-                    style={"width": "24%"},
+                    style={
+                        "width": "24%",
+                        "padding-top": "0px",
+                    },
                     children=[
-                        html.H2("COVID-19 DATA ANALYSIS"),
-                        html.P(id="cases-kenya"),
-                        html.P(id="deaths-kenya"),
-                        html.P(id="recoveries-kenya"),
-
-
                         # Change to side by side for mobile layout
                         html.Div(
                             className="row",
                             children=[
+                                html.Div(
+                                    className='row',
+                                    children=[
+                                        html.Div(
+                                            className='heading-county-summary',
+                                            children=[
+                                                html.H2("COUNTY SUMMARY"),
+                                            ]
+                                        ),
+                                        html.Div(
+                                            className="row county-summary-parag",
+                                            children=[
+                                                html.P(id='county-summary'),
+                                            ]
+                                        ),
+
+                                    ]
+                                ),
                                 html.Div(
                                     className="div-for-dropdown",
                                     children=[
@@ -303,16 +206,6 @@ app.layout = html.Div(
                                         )
                                     ],
                                 ),
-                                html.H2("COUNTY SUMMARY"),
-                                html.P(id='county-summary'),
-                                # html.P(f"{sorted_list[0][0]}: {sorted_list[0][1]}"),
-                                # html.P(f"{sorted_list[1][0]}: {sorted_list[1][1]}"),
-                                # html.P(f"{sorted_list[2][0]}: {sorted_list[2][1]}"),
-                                # html.P(f"{sorted_list[3][0]}: {sorted_list[3][1]}"),
-                                # html.P(
-                                #     {f"{list_cases_in_each_county[i][0]}: {list_cases_in_each_county[i][1]}"}
-                                #     for i in range(len(list_cases_in_each_county))
-                                # ),
                             ],
                         ),
                         html.P(id="kenya-total-cases"),
@@ -337,13 +230,35 @@ app.layout = html.Div(
                         "float": "right",
                         "width": "25%",
                         "margin-left": "1%",
-                        "margin-right": "1%"
+                        "margin-right": "1%",
+                        "padding-top": "0px",
                     },
                     children=[
-                        html.H2("GLOBAL COVID-19 RESULTS"),
+                        html.H2("WORLD RESULTS"),
                         html.P(id='total-cases'),
                         html.P(id="total-deaths"),
                         html.P(id="total-recovered"),
+                        html.Div(
+                            className='row',
+                            children=[
+                                html.Div(
+                                    className='heading-county-summary',
+                                    children=[
+                                        html.H2("COUNTRIES SUMMARY"),
+                                    ]
+                                ),
+                                html.Div(
+                                    className="row county-summary-parag",
+                                    style={
+                                        "height": "11em",
+                                    },
+                                    children=[
+                                        html.P(id='global-summary'),
+                                    ]
+                                ),
+
+                            ]
+                        ),
                     ]
                 ),
 
@@ -354,21 +269,12 @@ app.layout = html.Div(
                         "float": "left",
                         "display": "flex",
                         "flex-direction": "right",
-                        "height": "100vh",
+                        "height": "65vh",
                         "width": "45%",
                         "background-color": "#31302F",
                     },
                     children=[
                         dcc.Graph(id='map-graph'),
-                        html.Div(
-                            className="text-padding",
-                            style={
-                                "padding": "5px",
-                                "margin-top": "1%",
-                            },
-                        ),
-                        dcc.Graph(
-                            id="histogram"),
                     ],
                 ),
             ],
@@ -376,45 +282,56 @@ app.layout = html.Div(
         html.Div(
             className="row",
             style={
+                "display": "inline-block",
                 "text-align": "center",
                 "margin-top": "1.8rem",
                 "margin-left": "10%",
                 "margin-right": "10%",
                 "padding-top": "1.8rem",
                 "width": "80%",
-                "font-size": "150%",
                 "color": "##bdbdbd",
-                "font-weight": "400",
             },
             children=[
                 html.H2("OTHER SUMMARY DOCUMENT WOULD GO HERE"),
                 html.Div(
-                    className="four columns",
+                    className="eight four columns",
                     style={
+                        "display": "inline-block",
+                        "margin": "0 auto",
                         "float": "left",
-                        "text-align": "left",
-                        "width": "40%"
+                        "padding": "3px",
+                        "width": "33%"
                     },
                     children=[
-                        html.H2("JUST SOME TESTING BEFORE PRODUCTION HEADING"),
-                        html.P("ojiwjeifjap9ejf;awejif"),
-                        html.P("aoijepoaejoaiejf oaijefoiejaoji eoaeji in the beginning God created the heavens"
-                               "and the earth,  and now it you and me are to fill it"),
-                        html.P("aoijeoaejifojeifojiefijoaejioeijfaiej"),
+                        dcc.Graph(
+                            id='histogram1'
+                        ),
                     ]
                 ),
                 html.Div(
                     className="four columns",
                     style={
-                        "float": "right",
-                        "width": "40%",
-                        "text-align": "left"
+                        "display": "inline-block",
+                        "margin": "0 auto",
+                        "padding": "3px",
+                        "width": "33%",
+                        "height": "30%",
                     },
                     children=[
-                        html.H2("JUST SOME TESTING BEFORE PRODUCTION HEADING"),
-                        html.P(";aoeif;aoejifoajeifoejfoajepoiej"),
-                        html.P("aoeijfoajieoaijeofjiaoeijfapoejifoejioeji"),
-                        html.P("aoejifoiaejfoaiejfiej"),
+                        dcc.Graph(id="histogram2")
+                    ]
+                ),
+                html.Div(
+                    className="four columns",
+                    style={
+                        "width": "33%",
+                        "text-align": "center",
+                        "display": "inline-block",
+                        "margin": "0 auto",
+                        "padding": "3px",
+                    },
+                    children=[
+                        dcc.Graph(id="histogram3")
                     ]
                 )
             ]
@@ -425,32 +342,68 @@ app.layout = html.Div(
 
 # Update total cases in kenya
 @app.callback(
-    Output("cases-kenya", "children"),
+    Output("cases-element", "children"),
     [Input("county-dropdown", "value")]
 )
 def update_kenya_confirmed(_):
     k_confirmed = confirmed_global.loc[c_index, str(date)]
-    return f"Total confirmed cases in Kenya: {k_confirmed}"
+    return f"{k_confirmed}"
 
 
 # Update total deaths in kenya
 @app.callback(
-    Output("deaths-kenya", "children"),
+    Output("deaths-element", "children"),
     [Input("county-dropdown", "value")]
 )
 def update_kenya_deaths(_):
     k_deaths = deaths_global.loc[d_index, str(date)]
-    return f"Total deaths in Kenya: {k_deaths}"
+    return f"{k_deaths}"
 
 
 # Update total recoveries in Kenya
 @app.callback(
-    Output("recoveries-kenya", "children"),
+    Output("recovered-element", "children"),
     [Input("county-dropdown", "value")]
 )
 def update_recoveries_kenya(_):
     k_recoveries = recovered_global.loc[r_index, str(date)]
-    return f"Total recoveries in Kenya: {k_recoveries}"
+    return f"{k_recoveries}"
+
+
+@app.callback(
+    Output("c-hrs-element", "children"),
+    [Input("county-dropdown", "value")]
+)
+def show_24_hours(_):
+    today = get_today(confirmed_global)
+    yesterday = get_prev_date(confirmed_global)
+    c_index, _, _ = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+    difference = confirmed_global.loc[c_index, today] - confirmed_global.loc[c_index, yesterday]
+    return f"+{difference} in past 24hrs"
+
+
+@app.callback(
+    Output("d-hrs-element", "children"),
+    [Input("county-dropdown", "value")]
+)
+def show_24_hours(_):
+    today = get_today(deaths_global)
+    yesterday = get_prev_date(deaths_global)
+    _, d_index, _ = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+    difference = deaths_global.loc[d_index, today] - deaths_global.loc[d_index, yesterday]
+    return f"+{difference} in past 24hrs"
+
+
+@app.callback(
+    Output("r-hrs-element", "children"),
+    [Input("county-dropdown", "value")]
+)
+def show_24_hours(_):
+    today = get_today(recovered_global)
+    yesterday = get_prev_date(recovered_global)
+    _, _, r_index = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+    difference = recovered_global.loc[d_index, today] - recovered_global.loc[d_index, yesterday]
+    return f"+{difference} in past 24hrs"
 
 
 # Update the list of the sub county drop down
@@ -502,14 +455,29 @@ def update_global_recoveries(_):
     return f"Total confirmed recoveries: {round(recoveries, 2)}M+"
 
 
+# Show the summary of all the countries
+@app.callback(
+    Output("global-summary", "children"),
+    [Input("county-dropdown", "value")]
+)
+def show_global_summary(_):
+    output = []
+    for i in range(len(sorted_countries)):
+        output += ('{0}: {1} cases'.format(sorted_countries[i][0], sorted_countries[i][1])), html.Br(), ''
+    return output
+
+
+# Shows the summary of all the counties
 @app.callback(
     Output("county-summary", "children"),
     [Input("county-dropdown", "value")]
 )
 def show_kenya_summary(_):
+    counties = get_counties_and_cases()
+    sorted_counties = OrderedDict(sorted(counties.items(), key=lambda x: x[1], reverse=True))
     output = []
-    for i in range(len(sorted_list)):
-        output += ('{0}: {1} cases'.format(sorted_list[i][0], sorted_list[i][1])), html.Br(), ''
+    for county, index in sorted_counties.items():
+        output += ('{0}: {1}'.format(county, index), html.Br(), '')
     return output
 
 
@@ -522,12 +490,7 @@ def show_kenya_summary(_):
     ],
 )
 def update_map(county, subcounty):
-
-    countries = country_and_cases()
-
-
-
-    zoom = 2.0
+    zoom = 5.0
     lat_initial = -1.2921
     long_initial = 36.8219
     bearing = 0
@@ -537,8 +500,7 @@ def update_map(county, subcounty):
         zoom = 5.0
         lat_initial = counties_constituencies_coords[county][subcounty]["Lat"]
         long_initial = counties_constituencies_coords[county][subcounty]["Long"]
-    print(lat_initial)
-    print(long_initial)
+    scale = 100
 
     return go.Figure(
         data=[
@@ -547,48 +509,33 @@ def update_map(county, subcounty):
                 lat=confirmed_global["Lat"],
                 lon=confirmed_global["Long"],
                 mode="markers",
-                hoverinfo="lat+lon",
-                text=" ",
+                hoverinfo="lat+lon+text",
+                text=with_text['Text'],
                 marker=go.scattermapbox.Marker(
                     showscale=False,
                     color='red',
-                    opacity=0.5,
-                    size=7,
-                    colorscale=[
-                        [0, "#F4EC15"],
-                        [0.04167, "#DAF017"],
-                        [0.0833, "#BBEC19"],
-                        [0.125, "#9DE81B"],
-                        [0.1667, "#80E41D"],
-                        [0.2083, "#66E01F"],
-                        [0.25, "#4CDC20"],
-                        [0.292, "#34D822"],
-                        [0.333, "#24D249"],
-                        [0.375, "#25D042"],
-                        [0.4167, "#26CC58"],
-                        [0.4583, "#28C86D"],
-                        [0.50, "#29C481"],
-                        [0.54167, "#2AC093"],
-                        [0.5833, "#2BBCA4"],
-                        [1.0, "#613099"],
-                    ],
-                    # colorbar=dict(
-                    #     title="Number <br> cases",
-                    #     x=0.93,
-                    #     xpad=0,
-                    #     nticks=10,
-                    #     tickfont=dict(color="#d8d8d8"),
-                    #     titlefont=dict(color="#d8d8d8"),
-                    #     thicknessmode="pixels",
-                    # ),
+                    opacity=0.9,
+                    size=8,
                 ),
             ),
             # Have here plot of kenya on the map
-
+            go.Scattermapbox(
+                lat=kenya_data['Lat'],
+                lon=kenya_data['Long'],
+                mode='markers',
+                hoverinfo='text',
+                text=kenya_data['County'] + ": " + kenya_data[ke_date].astype(str),
+                marker=go.scattermapbox.Marker(
+                    showscale=False,
+                    color='red',
+                    opacity=1.0,
+                    size=10,
+                ),
+            ),
         ],
         layout=go.Layout(
             autosize=True,
-            margin=go.layout.Margin(l=0, r=35, t=0, b=0),
+            margin=go.layout.Margin(l=0, r=20, t=0, b=0),
             showlegend=False,
             mapbox=dict(
                 accesstoken=mapbox_access_token,
@@ -597,151 +544,402 @@ def update_map(county, subcounty):
                 bearing=bearing,
                 zoom=zoom,
             ),
-            # updatemenus=[
-            #     dict(
-            #         buttons=(
-            #             [
-            #                 dict(
-            #                     args=[
-            #                         {
-            #                             "mapbox.zoom": 3.0,
-            #                             "mapbox.center.lon": -1.2921,
-            #                             "mapbox.center.lat": 36.8219,
-            #                             "mapbox.bearing": 0,
-            #                             "mapbox.style": "dark",
-            #                         }
-            #                     ],
-            #                     label="Reset Zoom",
-            #                     method="relayout",
-            #                 )
-            #             ]
-            #         ),
-            #         direction="right",
-            #         pad={"r": 0, "t": 0, "b": 0, "l": 0},
-            #         showactive=False,
-            #         type="buttons",
-            #         x=0.45,
-            #         y=0.02,
-            #         xanchor="right",
-            #         yanchor="bottom",
-            #         bgcolor="#323130",
-            #         borderwidth=1,
-            #         bordercolor="#6d6d6d",
-            #         font=dict(color="#FFFFFF"),
-            #     )
-            # ],
         ),
     )
 
 
 # Update the line graph
 @app.callback(
-    Output("histogram", "figure"),
+    Output("histogram1", "figure"),
     [
         Input("county-dropdown", "value"),
         Input("sub-county-dropdown", "value"),
     ]
 )
-def update_histogram(county, sub_county):
-    x_axis, y_axis = update_axes(county, sub_county)
-    x_axis, y_axis = data_without_zeros(x_axis, y_axis)
-    if county is None:
-        text = "Graph of COVID-19 cases in Kenya"
-    elif county is not None and sub_county is None:
-        text = f"Graph of COVID-19 cases in {county}"
+def update_histogram(country, sub_county):
+    if country is None:
+        text = "GRAPH OF ACTIVE CASES<br>Comaparison of Kenya and US"
+        country = 'US'
+    elif country is not None and sub_county is None:
+        text = f"GRAPH OF ACTIVE CASES<br>Comparison of Kenaya and {country}"
     else:
-        text = f"Graph of COVID-19 cases in {county}, {sub_county}"
-    # labels = ['Confirmed', 'Deaths', "Recoveries"]
-    # colors = ['rgb(67,67, 67', 'rgb(115,115,115)', 'rgb(49,130,189)']
-    #
-    # mode_size = [12, 8, 8]
-    # line_size = [4, 2, 2]
-    labels = ['Confirmed']
-    colors = ['white']
+        text = f"Comparison of Kenya and {country}, {sub_county}"
 
-    mode_size = [12]
-    line_size = [4]
+    title = "GRAPH FOR ACTIVE CASES"
+    labels = [f"{country}", "Kenya"]
+    colors = ['rgb(49,130,189)', 'red']
+    mode_size = [8, 12]
+    line_size = [2, 4]
+
+    # Chosen country
+    row, col = get_first_date(country)
+    x_axis, y = get_axes(row, col, confirmed_global)
+    y_axis,mean, std_div = normalize_axis(y)
+
+    # Kenya
+    row, col = get_first_date("Kenya")
+    ke_x_axis, y = get_axes(row, col, confirmed_global)
+    ke_y_axis, ke_mean, ke_std_div = normalize_axis(y)
+
+    mean_data = [mean, ke_mean]
+    std_data = [std_div, ke_std_div]
+
+    x_data = [x_axis, ke_x_axis]
+    y_data = [y_axis, ke_y_axis]
 
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(
-        x=x_axis, y=y_axis, mode='lines',
-        name=labels[0],
-        line=dict(color=colors[0], width=line_size[0]),
-        connectgaps=True,
-    ))
-    # endpoints
-    fig.add_trace(
-        go.Scatter(
-            x=[x_axis[0], x_axis[-1]],
-            y=[y_axis[0], y_axis[-1]],
-            mode='markers',
-            marker=dict(color=colors[0], size=mode_size[0])
+    for i in range(len(y_data)):
+        fig.add_trace(go.Scatter(
+            x=x_data[i], y=y_data[i], mode='lines',
+            name=labels[i],
+            line=dict(color=colors[i], width=line_size[i]),
+            connectgaps=True,
+        ))
+        # endpoints
+        fig.add_trace(
+            go.Scatter(
+                x=[x_data[i][0], x_data[i][-1]],
+                y=[y_data[i][0], y_data[-1]],
+                mode='markers',
+                marker=dict(color=colors[i], size=mode_size[i])
+            )
         )
-    )
-    fig.update_layout(
-        xaxis=dict(
-            showline=True,
-            showgrid=False,
-            showticklabels=True,
-            linecolor='rgb(204, 204, 204)',
-            linewidth=2,
-            ticks='outside',
-            tickfont=dict(
-                family='Arial',
-                size=12,
-                color='rgb(82, 82, 82)',
+        fig.update_layout(
+            xaxis=dict(
+                showline=True,
+                showgrid=False,
+                showticklabels=True,
+                linecolor='rgb(204, 204, 204)',
+                linewidth=2,
+                ticks='outside',
+                tickfont=dict(
+                    family='Arial',
+                    size=12,
+                    color='rgb(82, 82, 82)',
+                ),
             ),
-        ),
-        yaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            showline=False,
-            showticklabels=False,
-        ),
-        autosize=True,
-        margin=dict(
-            autoexpand=False,
-            l=100,
-            r=20,
-            t=110,
-        ),
-        showlegend=False,
-        plot_bgcolor="#323130",
-        paper_bgcolor="#323130"
-    )
-    annotations = [
-        dict(
-            xref='paper',
-            yref='paper',
-            x=0.0,
-            y=1.05,
-            xanchor='left',
-            yanchor='top',
-            text=text,
-            font=dict(
-                family='Open Sans',
-                size=12,
-                color='#d8d8d8'
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showline=False,
+                showticklabels=False,
             ),
-            showarrow=False
-        ),
-        dict(
-            xref='paper',
-            x=0.95,
-            y=y_axis[-1],
-            xanchor='left',
-            yanchor='middle',
-            text='{} cases'.format(y_axis[-1]),
-            font=dict(
-                family='Arial',
-                size=16,
-                color='rgb(150, 150, 150)',
+            autosize=False,
+            margin=dict(
+                autoexpand=False,
+                l=20,
+                r=20,
+                pad=4,
+                t=20,
+            ),
+            showlegend=True,
+            plot_bgcolor="#323130",
+            paper_bgcolor="#323130",
+            height=400,
+        )
 
-            ),
-            showarrow=False
-        )
+        for y_trace, label, color, m, std in zip(y_data, labels, colors, mean_data, std_data):
+            annotations = [
+
+                # Title of the graph
+                dict(
+                    xref='paper',
+
+                    yref='paper',
+                    x=0.0,
+                    y=1.05,
+                    xanchor='left',
+                    yanchor='top',
+                    text=text,
+                    font=dict(
+                        family='Open Sans',
+                        size=12,
+                        color='#d8d8d8'
+                    ),
+                    showarrow=False
+                ),
+                # Labeling the right side of the plot
+                dict(
+                    xref='paper',
+                    x=0.95,
+                    y=y_trace[-1],
+                    xanchor='left',
+                    yanchor='middle',
+                    text='{} cases'.format(y_trace[-1]),
+                    font=dict(
+                        family='Arial',
+                        size=16,
+                        color='rgb(150, 150, 150)',
+
+                    ),
+                    showarrow=False
+                )
+            ]
+    fig.update_layout(annotations=annotations)
+
+    return fig
+
+
+@app.callback(
+    Output("histogram2", "figure"),
+    [
+        Input("county-dropdown", "value"),
+        Input("sub-county-dropdown", "value"),
     ]
+)
+def update_graph_for_recoveries(country, sub):
+    if country is None:
+        text = "GRAPH OF RECOVERIES<br>Comaparison of Kenya and US"
+        country = 'US'
+    elif country is not None and sub is None:
+        text = f"GRAPH OF RECOVERIES<br>Comparison of Kenaya and {country}"
+    else:
+        text = f"Comparison of Kenya and {country}, {sub}"
+
+    title = "GRAPH FOR RECOVERIES CASES"
+    labels = [f"{country}", "Kenya"]
+    colors = ['rgb(49,130,189)', 'red']
+    mode_size = [8, 12]
+    line_size = [2, 4]
+
+    # Chosen country
+    row, col = get_first_date(country)
+    x_axis, y = get_axes(row, col, recovered_global)
+    y_axis,mean, std_div = normalize_axis(y)
+
+    # Kenya
+    row, col = get_first_date("Kenya")
+    ke_x_axis, y = get_axes(row, col, recovered_global)
+    ke_y_axis, ke_mean, ke_std_div = normalize_axis(y)
+
+    mean_data = [mean, ke_mean]
+    std_data = [std_div, ke_std_div]
+
+    x_data = [x_axis, ke_x_axis]
+    y_data = [y_axis, ke_y_axis]
+
+    fig = go.Figure()
+
+    for i in range(len(y_data)):
+        fig.add_trace(go.Scatter(
+            x=x_data[i], y=y_data[i], mode='lines',
+            name=labels[i],
+            line=dict(color=colors[i], width=line_size[i]),
+            connectgaps=True,
+        ))
+        # endpoints
+        fig.add_trace(
+            go.Scatter(
+                x=[x_data[i][0], x_data[i][-1]],
+                y=[y_data[i][0], y_data[-1]],
+                mode='markers',
+                marker=dict(color=colors[i], size=mode_size[i])
+            )
+        )
+        fig.update_layout(
+            xaxis=dict(
+                showline=True,
+                showgrid=False,
+                showticklabels=True,
+                linecolor='rgb(204, 204, 204)',
+                linewidth=2,
+                ticks='outside',
+                tickfont=dict(
+                    family='Arial',
+                    size=12,
+                    color='rgb(82, 82, 82)',
+                ),
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showline=False,
+                showticklabels=False,
+            ),
+            autosize=False,
+            margin=dict(
+                autoexpand=False,
+                l=20,
+                r=20,
+                pad=4,
+                t=20,
+            ),
+            showlegend=True,
+            plot_bgcolor="#323130",
+            paper_bgcolor="#323130",
+            height=400,
+        )
+
+        for y_trace, label, color, m, std in zip(y_data, labels, colors, mean_data, std_data):
+            annotations = [
+
+                # Title of the graph
+                dict(
+                    xref='paper',
+
+                    yref='paper',
+                    x=0.0,
+                    y=1.05,
+                    xanchor='left',
+                    yanchor='top',
+                    text=text,
+                    font=dict(
+                        family='Open Sans',
+                        size=12,
+                        color='#d8d8d8'
+                    ),
+                    showarrow=False
+                ),
+                # Labeling the right side of the plot
+                dict(
+                    xref='paper',
+                    x=0.95,
+                    y=y_trace[-1],
+                    xanchor='left',
+                    yanchor='middle',
+                    text='{} cases'.format(y_trace[-1]),
+                    font=dict(
+                        family='Arial',
+                        size=16,
+                        color='rgb(150, 150, 150)',
+
+                    ),
+                    showarrow=False
+                )
+            ]
+    fig.update_layout(annotations=annotations)
+
+    return fig
+
+
+@app.callback(
+    Output("histogram3", "figure"),
+    [
+        Input("county-dropdown", "value"),
+        Input("sub-county-dropdown", "value"),
+    ]
+)
+def update_graph_for_deaths(country, sub):
+    if country is None:
+        text = "GRAPH FOR DEATHS<br>Comaparison of Kenya and US"
+        country = 'US'
+    elif country is not None and sub is None:
+        text = f"Comparison of Kenaya and {country}"
+    else:
+        text = f"Comparison of Kenya and {country}, {sub}"
+
+    title = "GRAPH FOR RECOVERIES CASES"
+    labels = [f"{country}", "Kenya"]
+    colors = ['rgb(49,130,189)', 'red']
+    mode_size = [8, 12]
+    line_size = [2, 4]
+
+    # Chosen country
+    row, col = get_first_date(country)
+    x_axis, y = get_axes(row, col, deaths_global)
+    y_axis,mean, std_div = normalize_axis(y)
+
+    # Kenya
+    row, col = get_first_date("Kenya")
+    ke_x_axis, y = get_axes(row, col, deaths_global)
+    ke_y_axis, ke_mean, ke_std_div = normalize_axis(y)
+
+    mean_data = [mean, ke_mean]
+    std_data = [std_div, ke_std_div]
+
+    x_data = [x_axis, ke_x_axis]
+    y_data = [y_axis, ke_y_axis]
+
+    fig = go.Figure()
+
+    for i in range(len(y_data)):
+        fig.add_trace(go.Scatter(
+            x=x_data[i], y=y_data[i], mode='lines',
+            name=labels[i],
+            line=dict(color=colors[i], width=line_size[i]),
+            connectgaps=True,
+        ))
+        # endpoints
+        fig.add_trace(
+            go.Scatter(
+                x=[x_data[i][0], x_data[i][-1]],
+                y=[y_data[i][0], y_data[-1]],
+                mode='markers',
+                marker=dict(color=colors[i], size=mode_size[i])
+            )
+        )
+        fig.update_layout(
+            xaxis=dict(
+                showline=True,
+                showgrid=False,
+                showticklabels=True,
+                linecolor='rgb(204, 204, 204)',
+                linewidth=2,
+                ticks='outside',
+                tickfont=dict(
+                    family='Arial',
+                    size=12,
+                    color='rgb(82, 82, 82)',
+                ),
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showline=False,
+                showticklabels=False,
+            ),
+            autosize=False,
+            margin=dict(
+                autoexpand=False,
+                l=20,
+                r=20,
+                pad=4,
+                t=20,
+            ),
+            showlegend=True,
+            plot_bgcolor="#323130",
+            paper_bgcolor="#323130",
+            height=400,
+        )
+
+        for y_trace, label, color, m, std in zip(y_data, labels, colors, mean_data, std_data):
+            annotations = [
+
+                # Title of the graph
+                dict(
+                    xref='paper',
+
+                    yref='paper',
+                    x=0.0,
+                    y=1.05,
+                    xanchor='left',
+                    yanchor='top',
+                    text=text,
+                    font=dict(
+                        family='Open Sans',
+                        size=12,
+                        color='#d8d8d8'
+                    ),
+                    showarrow=False
+                ),
+                # Labeling the right side of the plot
+                dict(
+                    xref='paper',
+                    x=0.95,
+                    y=y_trace[-1],
+                    xanchor='left',
+                    yanchor='middle',
+                    text='{} cases'.format(y_trace[-1]),
+                    font=dict(
+                        family='Arial',
+                        size=16,
+                        color='rgb(150, 150, 150)',
+
+                    ),
+                    showarrow=False
+                )
+            ]
     fig.update_layout(annotations=annotations)
 
     return fig

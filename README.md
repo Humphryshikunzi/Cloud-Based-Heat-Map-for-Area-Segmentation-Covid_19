@@ -33,3 +33,5 @@ pip install requests==2.23.0
 
 ## The Dash App
 The Dash app displays the graphs, where Kenya is Compared against other Countries in terms of Covid 19 Cases that have been reported since each Country reported the first case.
+
+There are two Dash Apps, one displays the graphs and the other displays the information about all cases amongst all Countries in the World

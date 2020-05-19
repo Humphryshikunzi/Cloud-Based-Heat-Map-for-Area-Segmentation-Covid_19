@@ -30,3 +30,6 @@ pip install requests==2.23.0
 3. Download [poppler](http://blog.alivate.com.au/poppler-windows/) extract it to {any file location} and add it to PATH
 
 
+
+## The Dash App
+The Dash app displays the graphs, where Kenya is Compared against other Countries in terms of Covid 19 Cases that have been reported since each Country reported the first case.

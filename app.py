@@ -946,4 +946,4 @@ def update_graph_for_deaths(country, sub):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)

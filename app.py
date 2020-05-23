@@ -1,37 +1,18 @@
-# import important libraries
 import dash
-from dash_application.utils import *
-import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
-from plotly import graph_objs as go
-from collections import OrderedDict
+import dash_bootstrap_components as dbc
 
-# Important variables set-up
-c_index, d_index, r_index = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
-counties_constituencies_coords = counties_with_constituencies()
-date = get_today(confirmed_global)
-cases_in_each_county = county_and_cases()
-ke_date = get_today(kenya_data)
-list_cases_in_each_county = []
-for case in cases_in_each_county.items():
-    list_cases_in_each_county.append([case[0], case[1]])
-sorted_list = sorted(list_cases_in_each_county, key=lambda x: x[1], reverse=True)
-cases_in_each_country = country_and_cases()
-list_cases_in_each_country = []
-for cases_c in cases_in_each_country.items():
-    list_cases_in_each_country.append([cases_c[0], cases_c[1]])
-sorted_countries = sorted(list_cases_in_each_country, key=lambda x: x[1], reverse=True)
-with_text['Text'] = with_text['Country/Region'] + '<br>Cases: ' + (with_text[date]).astype(str)
-# ke_with_text['Text'] = ke_with_text['County'] + "<br>Cases " + (ke_with_text[date]).astype(str)
 
-# Some final house keeping set-ups :)
 app = dash.Dash(
     __name__,
+    suppress_callback_exceptions=True,
     meta_tags=[
         {"name": "viewpoint", "content": "width=device-width"}
     ],
+    external_stylesheets=["https://codepen.io/chriddyp/pen/bWLwgP.css", 'dash_application/assets/style.css', dbc.themes.BOOTSTRAP]
 )
+
+server = app.server
 app.head = [
     html.Link(
         href='assets/favicon.ico',
@@ -947,3 +928,4 @@ def update_graph_for_deaths(country, sub):
 
 if __name__ == "__main__":
     app.run_server(debug=False)
+

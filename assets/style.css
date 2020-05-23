@@ -9,6 +9,11 @@ body {
   margin: 0;
   padding: 0;
 }
+.summary-heading{
+  align-text: center;
+  font-weight: bold;
+  font-size: 42px;
+}
 h1, h2, h3, h4, h5 {
   font-family: "Open Sans";
   font-weight: bold;
@@ -42,6 +47,33 @@ a {
   align-items: center;
 }
 /* Graph Layout ––––––––––––––––––––––––––––––––––––––––––––––––––*/
+.graph{
+  display: inherit;
+  justify-content: space-around;
+  margin-left: 2%;
+  margin-right: 2%;
+  text-align: center;
+  width: 90%;
+  height: 100px;
+}
+.graph1 {
+  display: inline-block;
+  padding: 3px;
+  width: 30%;
+}
+.graph2{
+  display: inline-block;
+  padding: 3px;
+  width: 30%;
+  float: left;
+}
+.graph3{
+  display: inline-block;
+  padding: 3px;
+  width: 30%;
+  float: right;
+}
+
 .div-for-charts{
   display: flex;
   flex-direction: column;
@@ -52,7 +84,8 @@ a {
   flex-grow: 1
 }
 #map-graph {
-  flex-grow: 1
+  flex-grow: 1;
+  height: 500px;
 }
 .mapboxgl-canvas, .mapboxgl-map {
   min-width: 100%;

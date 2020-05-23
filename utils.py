@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import dash_html_components as html
 
 confirmed_global = pd.read_csv("https://data.humdata.org/hxlproxy/api/data-preview.csv?url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_confirmed_global.csv&filename=time_series_covid19_confirmed_global.csv")
 deaths_global = pd.read_csv("https://data.humdata.org/hxlproxy/api/data-preview.csv?url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_deaths_global.csv&filename=time_series_covid19_deaths_global.csv")
@@ -15,6 +16,160 @@ confirmed = confirmed.fillna(0)
 
 kenya_data = pd.read_excel("assets/complete_set.xlsx")
 ke_with_text = pd.read_excel('assets/complete_set.xlsx')
+
+
+def get_kenya_index_from_global(confirmed, deaths, recoveries):
+    # Takes pd data frames confirmed, deaths, recoveries
+    # Returns index of kenya from all the pd data frames
+    for index, country in enumerate(confirmed["Country/Region"]):
+        if country == "Kenya":
+            c_index = index
+    for index, country in enumerate(deaths["Country/Region"]):
+        if country == "Kenya":
+            d_index = index
+    for index, country in enumerate(recoveries["Country/Region"]):
+        if country == "Kenya":
+            r_index = index
+    return c_index, d_index, r_index
+
+
+# update number of hours
+def show_24_hours_c():
+    today = get_today(confirmed_global)
+    yesterday = get_prev_date(confirmed_global)
+    c_index, _, _ = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+    difference = confirmed_global.loc[c_index, today] - confirmed_global.loc[c_index, yesterday]
+    return f"+{difference} in past 24hrs"
+
+
+def show_24_hours_d():
+    today = get_today(deaths_global)
+    yesterday = get_prev_date(deaths_global)
+    _, d_index, _ = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+    difference = deaths_global.loc[d_index, today] - deaths_global.loc[d_index, yesterday]
+    return f"+{difference} in past 24hrs"
+
+
+def show_24_hours_r():
+    today = get_today(recovered_global)
+    yesterday = get_prev_date(recovered_global)
+    _, _, r_index = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+    difference = recovered_global.loc[d_index, today] - recovered_global.loc[d_index, yesterday]
+    return f"+{difference} in past 24hrs"
+
+
+def update_kenya_confirmed():
+    k_confirmed = confirmed_global.loc[c_index, str(date)]
+    return f"{k_confirmed}"
+
+
+def update_kenya_deaths():
+    k_deaths = deaths_global.loc[d_index, str(date)]
+    return f"{k_deaths}"
+
+
+def update_recoveries_kenya():
+    k_recoveries = recovered_global.loc[r_index, str(date)]
+    return f"{k_recoveries}"
+
+
+def header_for_the_page():
+    division = html.Div(
+        children=[
+            html.Div(
+                className="row",
+                style={
+                    "text-align": "center",
+                    "margin-top": "1.8rem",
+                    "margin-left": "10%",
+                    "margin-right": "10%",
+                    "padding-top": "1.8rem",
+                    "width": "80%",
+                    "font-size": "150%",
+                    "color": "##bdbdbd",
+                    "font-weight": "400",
+                },
+                children=[
+                    html.H1("CORONA VIRUS DISEASE KENYA DASHBOARD: HEAT MAP AND DATA ANALYSIS TOOL"),
+                ]
+            ),
+            html.Div(
+                className='row wrapper',
+                style={
+                    "text-align": "center",
+                    "display": "inherit",
+                    "margin-bottom": "10px",
+                },
+                children=[
+                    html.Div(
+                        className='row',
+                        style={
+                            "background": "#292929",
+                            "margin-left": "2%",
+                            "margin-right": "2%",
+                            "text-align": "center",
+                            "width": "80%",
+                            "display": "inline-block",
+                            "justify-content": "space-around",
+                            "overflow-x": "auto",
+                        },
+                        children=[
+                            html.Div(
+                                className='summary-heading',
+                                style={
+                                    "display": "inline-block",
+                                    "margin": "0 auto",
+                                    "float": "left",
+                                    "padding": "3px",
+                                    "width": "20%",
+                                },
+                                children=[
+                                    html.P(show_24_hours_c(), className='hrs-24', id='c-hrs-element'),
+                                    html.H1(update_kenya_confirmed(), className='cases-num', id='cases-element'),
+                                    html.P("CASES", className='cases-text'),
+                                ]
+                            ),
+                            html.Div(
+                                className='summary-heading',
+                                style={
+                                    "display": "inline-block",
+                                    "margin": "0 auto",
+                                    "padding": "3px",
+                                    "float": "center",
+                                    "width": "20%"
+                                },
+                                children=[
+                                    html.P(show_24_hours_r(), className='hrs-24', id="r-hrs-element"),
+                                    html.H1(update_recoveries_kenya(), className='recovered-num', id='recovered-element'),
+                                    html.P("RECOVERIES", className='recovered-text'),
+                                ]
+                            ),
+                            html.Div(
+                                className='summary-heading',
+                                style={
+                                    "display": "inline-block",
+                                    "padding": "3px",
+                                    "margin": "0 auto",
+                                    "float": "right",
+                                    "width": "20%"
+                                },
+                                children=[
+                                    html.P(show_24_hours_d(), className='hrs-24', id='d-hrs-element'),
+                                    html.H1(update_kenya_deaths(), className='deaths-num', id='deaths-element'),
+                                    html.P("DEATHS", className='deaths-text'),
+                                ]
+                            ),
+                        ]
+                    ),
+
+                ]
+
+            ),
+        ]
+    )
+
+    return division
+
 
 # House keeping functions
 def get_kenya_first_case(dict_data):
@@ -82,21 +237,6 @@ def update_list_constituencies(county):
     all_const = counties_with_constituencies()
     constituencies = [const for const in all_const[county]]
     return constituencies
-
-
-def get_kenya_index_from_global(confirmed, deaths, recoveries):
-    # Takes pd data frames confirmed, deaths, recoveries
-    # Returns index of kenya from all the pd data frames
-    for index, country in enumerate(confirmed["Country/Region"]):
-        if country == "Kenya":
-            c_index = index
-    for index, country in enumerate(deaths["Country/Region"]):
-        if country == "Kenya":
-            d_index = index
-    for index, country in enumerate(recoveries["Country/Region"]):
-        if country == "Kenya":
-            r_index = index
-    return c_index, d_index, r_index
 
 
 def update_axes(county, sub_county):
@@ -227,3 +367,20 @@ def get_counties_and_cases():
     for index, county in enumerate(kenya_data["County"]):
         county_cases[county] = kenya_data.loc[index, today]
     return county_cases
+
+
+c_index, d_index, r_index = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+counties_constituencies_coords = counties_with_constituencies()
+date = get_today(confirmed_global)
+cases_in_each_county = county_and_cases()
+ke_date = get_today(kenya_data)
+list_cases_in_each_county = []
+for case in cases_in_each_county.items():
+    list_cases_in_each_county.append([case[0], case[1]])
+sorted_list = sorted(list_cases_in_each_county, key=lambda x: x[1], reverse=True)
+cases_in_each_country = country_and_cases()
+list_cases_in_each_country = []
+for cases_c in cases_in_each_country.items():
+    list_cases_in_each_country.append([cases_c[0], cases_c[1]])
+sorted_countries = sorted(list_cases_in_each_country, key=lambda x: x[1], reverse=True)
+with_text['Text'] = with_text['Country/Region'] + '<br>Cases: ' + (with_text[date]).astype(str)

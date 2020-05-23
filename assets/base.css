@@ -25,6 +25,22 @@ Taken from https://codepen.io/chriddyp/pen/bWLwgP.css
     padding: 0 20px;
     box-sizing: border-box;
   }
+  .county-summary-parag {
+    overflow-y: scroll;
+    height: 15em;
+  }
+  .cases-num {
+    font-size: 1.3em;
+    color: yellow;
+  }
+  .recovered-num {
+    font-size: 1.3em;
+    color: royalblue;
+  }
+  .deaths-num {
+    font-size: 1.3em;
+    color: red;
+  }
   .column, .columns {
     width: 100%;
     float: left;

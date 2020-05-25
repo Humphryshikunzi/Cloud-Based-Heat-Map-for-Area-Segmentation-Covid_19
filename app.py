@@ -1,7 +1,21 @@
-import dash
+import datetime
+
+import dash_core_components as dcc
 import dash_html_components as html
+import dash
+from dash.dependencies import Input, Output
+from collections import OrderedDict
+from plotly import graph_objs as go
+import flask
+import numpy as np
+import pandas as pd
+from random import randint
+import os
 import dash_bootstrap_components as dbc
 
+
+server = flask.Flask(__name__)
+server.secret_key = os.environ.get('secret_key', str(randint(0, 1000000)))
 
 app = dash.Dash(
     __name__,
@@ -9,10 +23,11 @@ app = dash.Dash(
     meta_tags=[
         {"name": "viewpoint", "content": "width=device-width"}
     ],
-    external_stylesheets=["https://codepen.io/chriddyp/pen/bWLwgP.css", 'dash_application/assets/style.css', dbc.themes.BOOTSTRAP]
+    server=server,
+    external_stylesheets=[dbc.themes.BOOTSTRAP]
 )
 
-server = app.server
+
 app.head = [
     html.Link(
         href='assets/favicon.ico',
@@ -20,342 +35,127 @@ app.head = [
     )
 ]
 app.title = 'COVID-19 KENYA DASHBOARD'
-server = app.server
-mapbox_access_token = "pk.eyJ1IjoiY29sbGlucy1lbWFzaSIsImEiOiJjazl6aTgzdnUwOGJrM2dxcmNqdzBpYWJhIn0.KyaoBCDDKFxe3ofQNd-fKw"
 
 
-# Layout for dash application
-app.layout = html.Div(
-    children=[
-        html.Div(
-            className="row",
-            style={
-                "text-align": "center",
-                "margin-top": "1.8rem",
-                "margin-left": "10%",
-                "margin-right": "10%",
-                "padding-top": "1.8rem",
-                "width": "80%",
-                "font-size": "150%",
-                "color": "##bdbdbd",
-                "font-weight": "400",
-            },
-            children=[
-                html.Img(
-                    className="logo",
-                    style={
-                        "float": "left",
-                    },
-                    src=app.get_asset_url("logo1.png"),
-                ),
-                html.Img(
-                    className="logo",
-                    style={
-                        "float": "right"
-                    },
-                    src=app.get_asset_url("logo1.png"),
-                ),
-                html.H1("CORONA VIRUS DISEASE KENYA DASHBOARD: HEAT MAP AND DATA ANALYSIS TOOL"),
-            ]
-        ),
-        html.Div(
-            className='row wrapper',
-            style={
-                "text-align": "center",
-                "display": "inherit",
-                "margin-bottom": "10px",
-            },
-            children=[
-                html.Div(
-                    className='row',
-                    style={
-                        "background": "#292929",
-                        "margin-left": "2%",
-                        "margin-right": "2%",
-                        "text-align": "center",
-                        "width": "80%",
-                        "display": "inline-block",
-                        "justify-content": "space-around",
-                        "overflow-x": "auto",
-                    },
-                    children=[
-                        html.Div(
-                            className='summary-heading',
-                            style={
-                                "display": "inline-block",
-                                "margin": "0 auto",
-                                "float": "left",
-                                "padding": "3px",
-                                "width": "20%",
-                            },
-                            children=[
-                                html.P("+0 in past 24hrs", className='hrs-24', id='c-hrs-element'),
-                                html.H1("0", className='cases-num', id='cases-element'),
-                                html.P("CASES", className='cases-text'),
-                            ]
-                        ),
-                        html.Div(
-                            className='summary-heading',
-                            style={
-                                "display": "inline-block",
-                                "margin": "0 auto",
-                                "padding": "3px",
-                                "float": "center",
-                                "width": "20%"
-                            },
-                            children=[
-                                html.P("+ 24 in past 24hrs", className='hrs-24', id="r-hrs-element"),
-                                html.H1("0", className='recovered-num', id='recovered-element'),
-                                html.P("RECOVERIES", className='recovered-text'),
-                            ]
-                        ),
-                        html.Div(
-                            className='summary-heading',
-                            style={
-                                "display": "inline-block",
-                                "padding": "3px",
-                                "margin": "0 auto",
-                                "float": "right",
-                                "width": "20%"
-                            },
-                            children=[
-                                html.P("+ 24 in past 24hrs", className='hrs-24', id='d-hrs-element'),
-                                html.H1("0", className='deaths-num', id='deaths-element'),
-                                html.P("DEATHS", className='deaths-text'),
-                            ]
-                        ),
-                    ]
-                ),
+confirmed_global = pd.read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+deaths_global = pd.read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
+recovered_global = pd.read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv")
+with_text = pd.read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+# confirmed_global = pd.read_csv("assets/time_series_covid19_confirmed_global.csv")
+# deaths_global = pd.read_csv("assets/time_series_covid19_deaths_global.csv")
+# recovered_global = pd.read_csv("assets/time_series_covid19_recovered_global.csv")
+# with_text = pd.read_csv("assets/time_series_covid19_confirmed_global.csv")
 
-            ]
-
-        ),
-        html.Div(
-            className='row',
-            children=[
-                # Column for user control
-                html.Div(
-                    className="four columns div-user-controls",
-                    style={
-                        "width": "24%",
-                        "padding-top": "0px",
-                    },
-                    children=[
-                        # Change to side by side for mobile layout
-                        html.Div(
-                            className="row",
-                            children=[
-                                html.Div(
-                                    className='row',
-                                    children=[
-                                        html.Div(
-                                            className='heading-county-summary',
-                                            children=[
-                                                html.H2("COUNTY SUMMARY"),
-                                            ]
-                                        ),
-                                        html.Div(
-                                            className="row county-summary-parag",
-                                            children=[
-                                                html.P(id='county-summary'),
-                                            ]
-                                        ),
-
-                                    ]
-                                ),
-                                html.Div(
-                                    className="div-for-dropdown",
-                                    children=[
-                                        # Dropdown for locations on map
-                                        dcc.Dropdown(
-                                            id='county-dropdown',
-                                            options=[
-                                                {"label": i, "value": i}
-                                                for i in counties_with_constituencies()
-                                            ],
-                                            placeholder="Select a County",
-                                        )
-                                    ],
-                                ),
-                                html.Div(
-                                    className="div-for-dropdown",
-                                    children=[
-                                        # Drop down to select sub county
-                                        dcc.Dropdown(
-                                            id='sub-county-dropdown',
-                                            placeholder="Select a Sub-County",
-                                        )
-                                    ],
-                                ),
-                            ],
-                        ),
-                        html.P(id="kenya-total-cases"),
-                        html.P(id="kenya-total-recoveries"),
-                        html.P(id="kenya-total-deaths"),
-                        dcc.Markdown(
-                            children=[
-                                "Source: [Press Releases](https://health.go.ke/press-releases)"
-                            ]
-                        ),
-                        dcc.Markdown(
-                            children=[
-                                "Source: [Global Source](https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/)"
-                            ]
-                        )
-                    ],
-                ),
-                # Column for global summary
-                html.Div(
-                    className="four columns div-user-controls",
-                    style={
-                        "float": "right",
-                        "width": "25%",
-                        "margin-left": "1%",
-                        "margin-right": "1%",
-                        "padding-top": "0px",
-                    },
-                    children=[
-                        html.H2("WORLD RESULTS"),
-                        html.P(id='total-cases'),
-                        html.P(id="total-deaths"),
-                        html.P(id="total-recovered"),
-                        html.Div(
-                            className='row',
-                            children=[
-                                html.Div(
-                                    className='heading-county-summary',
-                                    children=[
-                                        html.H2("COUNTRIES SUMMARY"),
-                                    ]
-                                ),
-                                html.Div(
-                                    className="row county-summary-parag",
-                                    style={
-                                        "height": "11em",
-                                    },
-                                    children=[
-                                        html.P(id='global-summary'),
-                                    ]
-                                ),
-
-                            ]
-                        ),
-                    ]
-                ),
-
-                # Column for app graphs and plots
-                html.Div(
-                    className="eight columns div-for-charts bg-grey",
-                    style={
-                        "float": "left",
-                        "display": "flex",
-                        "flex-direction": "right",
-                        "height": "65vh",
-                        "width": "45%",
-                        "background-color": "#31302F",
-                    },
-                    children=[
-                        dcc.Graph(id='map-graph'),
-                    ],
-                ),
-            ],
-        ),
-        html.Div(
-            className="row",
-            style={
-                "display": "inline-block",
-                "text-align": "center",
-                "margin-top": "1.8rem",
-                "margin-left": "10%",
-                "margin-right": "10%",
-                "padding-top": "1.8rem",
-                "width": "80%",
-                "color": "##bdbdbd",
-            },
-            children=[
-                html.H2("OTHER SUMMARY DOCUMENT WOULD GO HERE"),
-                html.Div(
-                    className="eight four columns",
-                    style={
-                        "display": "inline-block",
-                        "margin": "0 auto",
-                        "float": "left",
-                        "padding": "3px",
-                        "width": "33%"
-                    },
-                    children=[
-                        dcc.Graph(
-                            id='histogram1'
-                        ),
-                    ]
-                ),
-                html.Div(
-                    className="four columns",
-                    style={
-                        "display": "inline-block",
-                        "margin": "0 auto",
-                        "padding": "3px",
-                        "width": "33%",
-                        "height": "30%",
-                    },
-                    children=[
-                        dcc.Graph(id="histogram2")
-                    ]
-                ),
-                html.Div(
-                    className="four columns",
-                    style={
-                        "width": "33%",
-                        "text-align": "center",
-                        "display": "inline-block",
-                        "margin": "0 auto",
-                        "padding": "3px",
-                    },
-                    children=[
-                        dcc.Graph(id="histogram3")
-                    ]
-                )
-            ]
-        )
-    ]
-)
+confirmed = pd.read_csv("testdata.csv")
+confirmed = confirmed.fillna(0)
+kenya_data = pd.read_csv("https://raw.githubusercontent.com/collins-emasi/kenya-data/master/complete_set.csv")
+ke_with_text = pd.read_csv('https://raw.githubusercontent.com/collins-emasi/kenya-data/master/complete_set.csv')
 
 
-# Update total cases in kenya
-@app.callback(
-    Output("cases-element", "children"),
-    [Input("county-dropdown", "value")]
-)
-def update_kenya_confirmed(_):
-    k_confirmed = confirmed_global.loc[c_index, str(date)]
-    return f"{k_confirmed}"
+def ke_axes_confirmed():
+    y_axis = []
+    for y in confirmed_global.loc[142, '3/13/20':]:
+        y_axis.append(y)
+    x_axis = list(range(len(y_axis)))
+    return x_axis, y_axis
 
 
-# Update total deaths in kenya
-@app.callback(
-    Output("deaths-element", "children"),
-    [Input("county-dropdown", "value")]
-)
-def update_kenya_deaths(_):
-    k_deaths = deaths_global.loc[d_index, str(date)]
-    return f"{k_deaths}"
+def ke_axes_deaths():
+    y_axis = []
+    for y in deaths_global.loc[142, '3/13/20':]:
+        y_axis.append(y)
+    x_axis = list(range(len(y_axis)))
+    return x_axis, y_axis
 
 
-# Update total recoveries in Kenya
-@app.callback(
-    Output("recovered-element", "children"),
-    [Input("county-dropdown", "value")]
-)
-def update_recoveries_kenya(_):
-    k_recoveries = recovered_global.loc[r_index, str(date)]
-    return f"{k_recoveries}"
+def ke_axes_recoveries():
+    y_axis = []
+    for y in deaths_global.loc[136, '3/13/20':]:
+        y_axis.append(y)
+    x_axis = list(range(len(y_axis)))
+    return x_axis, y_axis
 
 
-@app.callback(
-    Output("c-hrs-element", "children"),
-    [Input("county-dropdown", "value")]
-)
-def show_24_hours(_):
+def get_kenya_index_from_global(confirmed, deaths, recoveries):
+    # Takes pd data frames confirmed, deaths, recoveries
+    # Returns index of kenya from all the pd data frames
+    for index, country in enumerate(confirmed["Country/Region"]):
+        if country == "Kenya":
+            c_index = index
+    for index, country in enumerate(deaths["Country/Region"]):
+        if country == "Kenya":
+            d_index = index
+    for index, country in enumerate(recoveries["Country/Region"]):
+        if country == "Kenya":
+            r_index = index
+    return c_index, d_index, r_index
+
+
+def Get_Country_Index():
+    country_indexes = {'Brazil': 28, 'India': 131, 'Italy': 137, 'Kenya': 142, 'South Africa': 200}
+    return country_indexes
+
+
+def Get_Country_Population():
+    countries_population = {'Brazil': 217301365, 'India': 1350716488, 'Italy': 60472125, 'Kenya': 53629525,
+                            'South Africa': 59220561}
+    return countries_population
+
+
+def Get_Country_Cases(country_population, index_of_country=142):
+    # get the total cases for a Country from the dowloaded data, using index for the Country, with default Kenya(142)
+    get_covid = confirmed_global.iloc[[index_of_country]]
+
+    # convert to 2D array
+    get_covid_to_2D_array = np.array(get_covid)
+
+    # convert to 1D array
+    get_covid_to_1_array = get_covid_to_2D_array[0]
+
+    # get rid of lon, lat, Country, State and index
+    get_covid_to_1_array_cleaned = np.array(get_covid_to_1_array[4:])
+
+    # get the day the fisrt case was reported
+    get_first_day = np.argmax(get_covid_to_1_array_cleaned > 0)
+
+    # reduce the array to include elements only for days when the day first case was reported
+    get_covid_cases = get_covid_to_1_array_cleaned[get_first_day:]
+
+    # Normalise the final data
+    get_covid_cases_normalised = (get_covid_cases / country_population) * 100000
+
+    # return a dictionary of cases for good visualization and normalised for plotting
+    final_cases = {'cases': get_covid_cases, 'cases_normalised': get_covid_cases_normalised}
+    return final_cases
+
+
+kenya_cases = Get_Country_Cases(Get_Country_Population()['Kenya'], Get_Country_Index()['Kenya'])
+italy_cases = Get_Country_Cases(Get_Country_Population()['Italy'], Get_Country_Index()['Italy'])
+brazil_cases = Get_Country_Cases(Get_Country_Population()['Brazil'], Get_Country_Index()['Brazil'])
+south_africa_cases = Get_Country_Cases(Get_Country_Population()['South Africa'], Get_Country_Index()['South Africa'])
+india_cases = Get_Country_Cases(Get_Country_Population()['India'], Get_Country_Index()['India'])
+
+
+# get the number of days when each country reported cases, starting from day one
+kenya_days  = len(kenya_cases['cases'])
+italy_days  = len(italy_cases['cases'])
+india_days  = len(india_cases['cases'])
+brazil_days = len(brazil_cases['cases'])
+south_africa_days = len(south_africa_cases['cases'])
+
+coutries_and_days = [kenya_days, italy_days, india_days, brazil_days, south_africa_days]
+coutry_with_highest_days = max(coutries_and_days)
+
+# get  the values for x axis for each country
+italy_x_axis = np.arange(1, italy_days + 1)
+kenya_x_axis = np.arange(1, kenya_days + 1)
+india_x_axis = np.arange(1, india_days + 1)
+brazil_x_axis = np.arange(1, brazil_days + 1)
+south_africa_x_axis = np.arange(1, south_africa_days + 1)
+
+
+# update number of hours
+def show_24_hours_c():
     today = get_today(confirmed_global)
     yesterday = get_prev_date(confirmed_global)
     c_index, _, _ = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
@@ -363,11 +163,7 @@ def show_24_hours(_):
     return f"+{difference} in past 24hrs"
 
 
-@app.callback(
-    Output("d-hrs-element", "children"),
-    [Input("county-dropdown", "value")]
-)
-def show_24_hours(_):
+def show_24_hours_d():
     today = get_today(deaths_global)
     yesterday = get_prev_date(deaths_global)
     _, d_index, _ = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
@@ -375,16 +171,680 @@ def show_24_hours(_):
     return f"+{difference} in past 24hrs"
 
 
-@app.callback(
-    Output("r-hrs-element", "children"),
-    [Input("county-dropdown", "value")]
-)
-def show_24_hours(_):
+def show_24_hours_r():
     today = get_today(recovered_global)
     yesterday = get_prev_date(recovered_global)
     _, _, r_index = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
     difference = recovered_global.loc[d_index, today] - recovered_global.loc[d_index, yesterday]
     return f"+{difference} in past 24hrs"
+
+
+def update_kenya_confirmed():
+    k_confirmed = confirmed_global.loc[c_index, str(date)]
+    return f"{k_confirmed}"
+
+
+def update_kenya_deaths():
+    k_deaths = deaths_global.loc[d_index, str(date)]
+    return f"{k_deaths}"
+
+
+def update_recoveries_kenya():
+    k_recoveries = recovered_global.loc[r_index, str(date)]
+    return f"{k_recoveries}"
+
+
+def header_for_the_page():
+    division = html.Div(
+        children=[
+            html.Div(
+                className="col-xs-1 text-center p-4 font-weight-bolder",
+                style={
+                },
+                children=[
+                    html.H1("CORONA VIRUS DISEASE KENYA DASHBOARD: HEAT MAP AND DATA ANALYSIS TOOL"),
+                ]
+            ),
+            html.Div(
+                className='row wrapper',
+                style={
+                    "text-align": "center",
+                    "display": "inherit",
+                    "margin-bottom": "10px",
+                },
+                children=[
+                    html.Div(
+                        className='row rounded-lg',
+                        style={
+                            "background": "black",
+                            "margin-left": "2%",
+                            "margin-right": "2%",
+                            "text-align": "center",
+                            "width": "90%",
+                            "display": "inline-block",
+                            "justify-content": "space-around",
+                            "overflow-x": "auto",
+                        },
+                        children=[
+                            html.Div(
+                                className='summary-heading',
+                                style={
+                                    "display": "inline-block",
+                                    "margin": "0 auto",
+                                    "float": "left",
+                                    "padding": "3px",
+                                    "width": "20%",
+                                },
+                                children=[
+                                    html.P(show_24_hours_c(), className='hrs-24', id='c-hrs-element'),
+                                    html.H1(update_kenya_confirmed(), className='cases-num', id='cases-element'),
+                                    html.P("CASES", className='cases-text'),
+                                ]
+                            ),
+                            html.Div(
+                                className='summary-heading',
+                                style={
+                                    "display": "inline-block",
+                                    "margin": "0 auto",
+                                    "padding": "3px",
+                                    "float": "center",
+                                    "width": "20%"
+                                },
+                                children=[
+                                    html.P(show_24_hours_r(), className='hrs-24', id="r-hrs-element"),
+                                    html.H1(update_recoveries_kenya(), className='recovered-num', id='recovered-element'),
+                                    html.P("RECOVERIES", className='recovered-text'),
+                                ]
+                            ),
+                            html.Div(
+                                className='summary-heading',
+                                style={
+                                    "display": "inline-block",
+                                    "padding": "3px",
+                                    "margin": "0 auto",
+                                    "float": "right",
+                                    "width": "20%"
+                                },
+                                children=[
+                                    html.P(show_24_hours_d(), className='hrs-24', id='d-hrs-element'),
+                                    html.H1(update_kenya_deaths(), className='deaths-num', id='deaths-element'),
+                                    html.P("DEATHS", className='deaths-text'),
+                                ]
+                            ),
+                        ]
+                    ),
+
+                ]
+
+            ),
+        ]
+    )
+
+    return division
+
+
+# House keeping functions
+def get_kenya_first_case(dict_data):
+    # Takes input a dictionary of dates and the cases on that date
+    # Returns the date of the first case in kenya
+    for x in dict_data:
+        if dict_data[x] != 0:
+            return x
+
+
+def get_num_to_dates(selected):
+    # Inputs a selected county
+    # Returns a dict of dates and num of cases of county
+    y_axis = {}
+    dates = [i for i in confirmed.iloc[:]][4:]
+    for date in dates:
+        y = 0
+        for index, cout in enumerate(confirmed["County"]):
+            if cout == selected:
+                y += confirmed.loc[index, str(date)]
+        y_axis[date] = y
+    return y_axis
+
+
+def get_sub_num(selected):
+    # Inputs a selected sub-county
+    # Returns a dict of dates and num of cases of sub-county
+    data = {}
+    dates = [i for i in confirmed.iloc[:]][4:]
+    for date in dates:
+        for index, sub in enumerate(confirmed["Constituency"]):
+            if sub == selected:
+                data[date] = confirmed.loc[index, date]
+    return data
+
+
+def counties_with_constituencies():
+    # Returns a dict with counties -> subcounties -> Lat, Long
+    # {county
+    #       {
+    #       sub-county
+    #               {
+    #               "Lat": ""
+    #               "Long": ""
+    #               }
+    #       }
+    # }
+    counties_constituencies = {}
+    for county in confirmed["County"]:
+        for index, const in enumerate(confirmed["Constituency"]):
+            if county not in counties_constituencies:
+                counties_constituencies[county] = {}
+            if const not in counties_constituencies[county] and confirmed.loc[index, "County"] == county:
+                counties_constituencies[county][const] = {
+                    "Lat": confirmed.loc[index, "Lat"],
+                    "Long": confirmed.loc[index, "Long"]
+                }
+
+    return counties_constituencies
+
+
+def update_list_constituencies(county):
+    # Inputs a county
+    # Returns a list of all sub-counties in a county
+    all_const = counties_with_constituencies()
+    constituencies = [const for const in all_const[county]]
+    return constituencies
+
+
+def update_axes(county, sub_county):
+    # Inputs a selected county and sub-county
+    # Return lists of x-axis(dates), y-axis(values) for graph
+    if county is not None and sub_county is None:
+        # if county alone is chosen
+        dict_of_days_nums = get_num_to_dates(county)
+        x_axis = [y for y in dict_of_days_nums]
+        y_axis = []
+        for axis in x_axis:
+            y_axis.append(dict_of_days_nums[axis])
+    elif county and sub_county:
+        # if both county and sub-county are chosen
+        axes = get_sub_num(sub_county)
+        x_axis = [x for x in axes]
+        y_axis = []
+        for i in x_axis:
+            y_axis.append(axes[i])
+    elif not county and not sub_county:
+        # if neither county nor sub-county is chosen
+        c_index, _, _ = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+        list_of_dates = [date for date in confirmed_global.iloc[:]][4:]
+        first_date = get_kenya_first_case(get_num_to_dates("Australia")) # Change later to kenya
+        y_axis = [i for i in confirmed_global.iloc[c_index, list_of_dates.index(first_date):]]
+        x_axis = [x for x in list_of_dates[list_of_dates.index(first_date):]]
+    return x_axis, y_axis
+
+
+def county_and_cases():
+    # Returns a dict of counties and the number of cases in the county
+    county_cases = {}
+    all_counties = counties_with_constituencies()
+    for county in all_counties:
+        _, num = update_axes(county, None)
+        county_cases[county] = sum(num)
+    return county_cases
+
+
+def country_and_cases():
+    # Returns a dict of coutries and the number of cases in the country
+    country_cases = {}
+    date = get_today(confirmed_global)
+    for index, country in enumerate(confirmed_global["Country/Region"]):
+        if country not in country_cases and pd.isnull(confirmed_global.loc[index, "Province/State"]):
+            country_cases[country] = confirmed_global.loc[index, date]
+        elif country not in country_cases and not pd.isnull(confirmed_global.loc[index, "Province/State"]):
+            country_cases[country + ", " + (confirmed_global.loc[index, "Province/State"])] = confirmed_global.loc[index, date]
+    return country_cases
+
+
+def get_global_results():
+    # Returns number of cases confirmed, recovered, died
+    init_c = init_d = init_r = 0
+    today_c, today_d, today_r = list(confirmed_global.head(0))[-1], list(deaths_global.head(0))[-1], list(recovered_global.head(0))[-1]
+    results_c, results_d, results_r = confirmed_global[today_c], deaths_global[today_d], recovered_global[today_r]
+    for con in results_c:
+        if con is None:
+            continue
+        init_c += con
+    for death in results_d:
+        if death is None:
+            continue
+        init_d += death
+    for recov in results_r:
+        if recov is None:
+            continue
+        init_r += recov
+
+    return init_c, init_d, init_r
+
+
+def get_today(csv_file):
+    # Takes in a pd data frame
+    # Returns the current date
+    latest_date = list(csv_file.head(0))[-1]
+    return latest_date
+
+
+def get_prev_date(csv_file):
+    # Takes in a pd dataframe
+    # Returns a previous date from today
+    prev_date = list(csv_file.head(0))[-2]
+    return prev_date
+
+
+def data_without_zeros(x, y):
+    # Inputs a list of x and y axis
+    # Returns x and y axis from when the first case was reported
+    for index, axis in enumerate(y):
+        if axis != 0:
+            break
+    return x[index:], y[index:]
+
+
+def get_first_date(country_region):
+    # Input a selected country
+    # Returns the row index and the column index of first case
+    for index, series in confirmed_global.iterrows():
+        if not pd.isnull(series['Province/State']) and series['Country/Region'] == country_region:
+            series['Country/Region'] = series['Country/Region'] + ", " + series['Province/State']
+            country_region = country_region + ", " + series['Province/State']
+        if series['Country/Region'] == country_region:
+            for col_index, date in enumerate(series[4:]):
+                if date != 0:
+                    return index, col_index + 4
+
+
+def normalize_axis(axis):
+    # takes in a list of values
+    # Returns mean normalize values
+    axis = np.array(axis)
+    axis_norm = (axis - axis.mean())/(axis.std())
+    return axis_norm.tolist(), axis.mean(), axis.std()
+
+
+def get_axes(row, col, data):
+    y_axis = []
+    for y in data.iloc[row, col:]:
+        y_axis.append(y)
+    x_axis = list(range(len(y_axis)))
+    return x_axis, y_axis
+
+
+def get_counties_and_cases():
+    today = get_today(kenya_data)
+    county_cases = {}
+    for index, county in enumerate(kenya_data["County"]):
+        county_cases[county] = kenya_data.loc[index, today]
+    return county_cases
+
+
+c_index, d_index, r_index = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
+counties_constituencies_coords = counties_with_constituencies()
+date = get_today(confirmed_global)
+cases_in_each_county = county_and_cases()
+ke_date = get_today(kenya_data)
+list_cases_in_each_county = []
+for case in cases_in_each_county.items():
+    list_cases_in_each_county.append([case[0], case[1]])
+sorted_list = sorted(list_cases_in_each_county, key=lambda x: x[1], reverse=True)
+cases_in_each_country = country_and_cases()
+list_cases_in_each_country = []
+for cases_c in cases_in_each_country.items():
+    list_cases_in_each_country.append([cases_c[0], cases_c[1]])
+sorted_countries = sorted(list_cases_in_each_country, key=lambda x: x[1], reverse=True)
+with_text['Text'] = with_text['Country/Region'] + '<br>Cases: ' + (with_text[date]).astype(str)
+
+
+def card_template(i_d, header='Card header', title='Card Title', footer='Stay Home, Stay Safe'):
+    return \
+        [
+            dbc.CardHeader(header),
+            dbc.CardBody(
+                [
+                    html.H5(title, className='card-title'),
+                    dcc.Graph(figure=graph_fig(i_d), id=i_d),
+                ]
+            ),
+            dbc.CardFooter(footer),
+        ]
+
+
+def graph_fig(i_d):
+    if i_d == 'graph0':
+        y_data = [
+            kenya_cases['cases'],
+            italy_cases['cases'],
+            india_cases['cases'],
+            brazil_cases['cases'],
+            south_africa_cases['cases'],
+        ]
+        x_data = [
+            kenya_x_axis, italy_x_axis, india_x_axis, brazil_x_axis, south_africa_x_axis
+        ]
+        names = [
+            'Kenya_covid_19_cases',
+            "Italy_covid_19_cases",
+            "India_covid_19_cases",
+            "Brazil_covid_19_cases",
+            "South_Africa_Covid_19_cases",
+        ]
+    elif i_d == 'graph1':
+        y_data = [
+            kenya_cases['cases_normalised'],
+            italy_cases['cases_normalised'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            italy_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "Italy_covid_19_cases",
+        ]
+    elif i_d == 'graph2':
+        y_data = [
+            kenya_cases['cases_normalised'],
+            india_cases['cases_normalised'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            india_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "India_covid_19_cases",
+        ]
+    elif i_d == 'graph3':
+        y_data = [
+            kenya_cases['cases_normalised'],
+            brazil_cases['cases_normalised'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            brazil_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "Brazil_covid_19_cases",
+        ]
+    elif i_d == 'graph4':
+        y_data = [
+            kenya_cases['cases_normalised'],
+            south_africa_cases['cases_normalised'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            south_africa_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "South_Africa_covid_19_cases",
+        ]
+    elif i_d == 'graph5':
+        y_data = [
+            kenya_cases['cases'],
+            italy_cases['cases'],
+            india_cases['cases'],
+            brazil_cases['cases'],
+            south_africa_cases['cases'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            italy_x_axis,
+            india_x_axis,
+            brazil_x_axis,
+            south_africa_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "Italy_covid_19_cases",
+            "India_covid_19_cases",
+            "Brazil_covid_19_cases",
+            "South_Africa_Covid_19_cases",
+        ]
+    elif i_d == 'graph6':
+        y_data = [
+            kenya_cases['cases'],
+            italy_cases['cases'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            italy_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "Italy_covid_19_cases",
+        ]
+    elif i_d == 'graph7':
+        y_data = [
+            kenya_cases['cases'],
+            india_cases['cases'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            india_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "India_covid_19_cases",
+        ]
+    elif i_d == 'graph8':
+        y_data = [
+            kenya_cases['cases'],
+            brazil_cases['cases'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            brazil_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "Brazil_covid_19_cases",
+        ]
+    elif i_d == 'graph9':
+        y_data = [
+            kenya_cases['cases'],
+            south_africa_cases['cases'],
+        ]
+        x_data = [
+            kenya_x_axis,
+            south_africa_x_axis,
+        ]
+        names = [
+            "Kenya_covid_19_cases",
+            "South_Africa_covid_19_cases",
+        ]
+    fig = {
+        'data': [
+            {'x': x_data[i], 'y': y_data[i], 'type': 'line', 'name': names[i]}
+            for i in range(len(y_data))
+        ]
+    }
+
+    return fig
+
+
+headers = [
+    'Comparison Graph (Normalised with Population)',
+    'Comparison Graph (Normalised with Population)',
+    'Comparison Graph (Normalised with Population)',
+    'Comparison Graph (Normalised with Population)',
+    'Comparison Graph (Without Normalization)',
+    'Comparison Graph (Without Normalization)',
+    'Comparison Graph (Without Normalization)',
+    'Comparison Graph (Without Normalization)',
+    'Comparison Graph (Without Normalization)',
+    'Comparison Graph (Without Normalization)',
+]
+titles = [
+    "Kenya, Italy, Brazil, South_Africa and India",
+    "Kenya and Italy",
+    "Kenya and India",
+    "Kenya and Brazil",
+    "Kenya and South Africa",
+    "Kenya, Italy, Brazil, South_Africa and India",
+    "Kenya and Italy",
+    "Kenya and India",
+    "Kenya and Brazil",
+    "Kenya and South_Africa"
+]
+card_content = [card_template('graph' + str(i), headers[i], titles[i]) for i in range(10)]
+
+
+
+mapbox_access_token = "pk.eyJ1IjoiY29sbGlucy1lbWFzaSIsImEiOiJjazl6aTgzdn" \
+                      "UwOGJrM2dxcmNqdzBpYWJhIn0.KyaoBCDDKFxe3ofQNd-fKw"
+
+
+# Layout for dash application
+layout1 = html.Div(
+    [
+        html.Div(
+            [
+                dbc.Row(
+                    children=[
+                        dbc.Col(
+                            className='rounded-lg four columns',
+                            style={
+                                'background': 'black',
+                                'height': '450px',
+                                'flex-grow': '1',
+                            },
+                            children=[
+                                html.Div(
+                                    style={
+                                        'background': 'black',
+                                    },
+                                    children=[
+                                        # Change to side by side for mobile layout
+                                        html.Div(
+                                            children=[
+                                                html.Div(
+                                                    children=[
+                                                        html.Div(
+                                                            className='heading-county-summary',
+                                                            children=[
+                                                                html.H2("COUNTY SUMMARY"),
+                                                            ]
+                                                        ),
+                                                        html.Div(
+                                                            # style={
+                                                            #     'height': '26rem',
+                                                            # },
+                                                            className="county-summary-parag",
+                                                            children=[
+                                                                html.P(id='county-summary'),
+                                                            ]
+                                                        ),
+
+                                                    ]
+                                                ),
+                                                html.Div(
+                                                    className="div-for-dropdown",
+                                                    children=[
+                                                        # Dropdown for locations on map
+                                                        dcc.Dropdown(
+                                                            id='county-dropdown',
+                                                            options=[
+                                                                {"label": i, "value": i}
+                                                                for i in kenya_data['County']
+                                                            ],
+                                                            placeholder="Select a County",
+                                                        )
+                                                    ],
+                                                ),
+                                                html.Div(
+                                                    className="div-for-dropdown",
+                                                    children=[
+                                                        # Drop down to select sub county
+                                                        dcc.Dropdown(
+                                                            id='sub-county-dropdown',
+                                                            placeholder="Select a Sub-County",
+                                                        )
+                                                    ],
+                                                ),
+                                            ],
+                                        ),
+                                        dcc.Markdown(
+                                            children=[
+                                                "Source: [Press Releases](https://health.go.ke/press-releases)"
+                                            ]
+                                        ),
+                                        dcc.Markdown(
+                                            children=[
+                                                "Source: [Global Source](https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/)"
+                                            ]
+                                        ),
+                                        dcc.Location(id='url', refresh=True),
+                                    ],
+                                ),
+                            ],
+                            width=3,
+                        ),
+                        dbc.Col(
+                            className='rounded-lg eight columns',
+                            style={
+                                'height': '450px', 'margin-left': '0%', 'padding-left': '0px', 'padding-right':'0px'
+                            },
+                            children=[
+                                html.Div(
+                                    children=[
+                                        dcc.Graph(id='map-graph'),
+                                    ],
+                                ),
+                            ],
+                            width=6
+                        ),
+                        dbc.Col(
+                            className='rounded-lg four',
+                            style={
+                                'background': 'black',
+                                'height': '450px',
+                            },
+                            children=[
+                                html.Div(
+                                    children=[
+                                        html.H2("GLOBAL"),
+                                        html.P(id='total-cases'),
+                                        html.P(id="total-deaths"),
+                                        html.P(id="total-recovered"),
+                                        html.Div(
+                                            children=[
+                                                html.Div(
+                                                    className='heading-county-summary four',
+                                                    children=[
+                                                        html.H2("COUNTRIES"),
+                                                    ]
+                                                ),
+                                                html.Div(
+                                                    children=[
+                                                        html.Div(
+                                                            className="county-summary-parag four",
+                                                            children=[
+                                                                html.P(id='global-summary'),
+                                                            ]
+                                                        ),
+                                                    ],
+                                                ),
+
+                                            ]
+                                        ),
+                                    ]
+
+                                ),
+                            ],
+                            width=3
+                        )
+                    ],
+                    align='start',
+                ),
+            ]
+        )
+    ]
+)
 
 
 # Update the list of the sub county drop down
@@ -396,8 +856,11 @@ def update_list_constituencies(county):
     if county is None:
         return []
     all_const = counties_with_constituencies()
-    constituencies = [const for const in all_const[county]]
-    return [{"label": i, "value": i} for i in constituencies]
+    if county in all_const:
+        constituencies = [const for const in all_const[county]]
+        return [{"label": i, "value": i} for i in constituencies]
+    else:
+        return []
 
 
 # update the global confirmed cases
@@ -477,6 +940,13 @@ def update_map(county, subcounty):
     bearing = 0
 
     # Also add for only county selection
+    if county:
+        for index, c in enumerate(kenya_data['County']):
+            if c == county:
+                break
+        zoom = 8.0
+        lat_initial = kenya_data['Lat'].loc[index]
+        long_initial = kenya_data['Long'].loc[index]
     if county and subcounty:
         zoom = 5.0
         lat_initial = counties_constituencies_coords[county][subcounty]["Lat"]
@@ -529,403 +999,204 @@ def update_map(county, subcounty):
     )
 
 
-# Update the line graph
-@app.callback(
-    Output("histogram1", "figure"),
+layout2 = html.Div(
     [
-        Input("county-dropdown", "value"),
-        Input("sub-county-dropdown", "value"),
-    ]
-)
-def update_histogram(country, sub_county):
-    if country is None:
-        text = "GRAPH OF ACTIVE CASES<br>Comaparison of Kenya and US"
-        country = 'US'
-    elif country is not None and sub_county is None:
-        text = f"GRAPH OF ACTIVE CASES<br>Comparison of Kenaya and {country}"
-    else:
-        text = f"Comparison of Kenya and {country}, {sub_county}"
-
-    title = "GRAPH FOR ACTIVE CASES"
-    labels = [f"{country}", "Kenya"]
-    colors = ['rgb(49,130,189)', 'red']
-    mode_size = [8, 12]
-    line_size = [2, 4]
-
-    # Chosen country
-    row, col = get_first_date(country)
-    x_axis, y = get_axes(row, col, confirmed_global)
-    y_axis,mean, std_div = normalize_axis(y)
-
-    # Kenya
-    row, col = get_first_date("Kenya")
-    ke_x_axis, y = get_axes(row, col, confirmed_global)
-    ke_y_axis, ke_mean, ke_std_div = normalize_axis(y)
-
-    mean_data = [mean, ke_mean]
-    std_data = [std_div, ke_std_div]
-
-    x_data = [x_axis, ke_x_axis]
-    y_data = [y_axis, ke_y_axis]
-
-    fig = go.Figure()
-
-    for i in range(len(y_data)):
-        fig.add_trace(go.Scatter(
-            x=x_data[i], y=y_data[i], mode='lines',
-            name=labels[i],
-            line=dict(color=colors[i], width=line_size[i]),
-            connectgaps=True,
-        ))
-        # endpoints
-        fig.add_trace(
-            go.Scatter(
-                x=[x_data[i][0], x_data[i][-1]],
-                y=[y_data[i][0], y_data[-1]],
-                mode='markers',
-                marker=dict(color=colors[i], size=mode_size[i])
-            )
-        )
-        fig.update_layout(
-            xaxis=dict(
-                showline=True,
-                showgrid=False,
-                showticklabels=True,
-                linecolor='rgb(204, 204, 204)',
-                linewidth=2,
-                ticks='outside',
-                tickfont=dict(
-                    family='Arial',
-                    size=12,
-                    color='rgb(82, 82, 82)',
-                ),
-            ),
-            yaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                showline=False,
-                showticklabels=False,
-            ),
-            autosize=False,
-            margin=dict(
-                autoexpand=False,
-                l=20,
-                r=20,
-                pad=4,
-                t=20,
-            ),
-            showlegend=True,
-            plot_bgcolor="#323130",
-            paper_bgcolor="#323130",
-            height=400,
-        )
-
-        for y_trace, label, color, m, std in zip(y_data, labels, colors, mean_data, std_data):
-            annotations = [
-
-                # Title of the graph
-                dict(
-                    xref='paper',
-
-                    yref='paper',
-                    x=0.0,
-                    y=1.05,
-                    xanchor='left',
-                    yanchor='top',
-                    text=text,
-                    font=dict(
-                        family='Open Sans',
-                        size=12,
-                        color='#d8d8d8'
-                    ),
-                    showarrow=False
-                ),
-                # Labeling the right side of the plot
-                dict(
-                    xref='paper',
-                    x=0.95,
-                    y=y_trace[-1],
-                    xanchor='left',
-                    yanchor='middle',
-                    text='{} cases'.format(y_trace[-1]),
-                    font=dict(
-                        family='Arial',
-                        size=16,
-                        color='rgb(150, 150, 150)',
-
-                    ),
-                    showarrow=False
+        html.Div(
+            [
+                html.Div(
+                    style={
+                        'margin-top': '3%',
+                        'margin-bottom': '3%',
+                        'margin-right': '3%',
+                        'margin-left': '3%',
+                    },
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(dbc.Card(card_content[0], color='primary', inverse=True, )),
+                                dbc.Col(dbc.Card(card_content[2], color='secondary', inverse=True)),
+                            ],
+                            className='mb-4',
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(dbc.Card(card_content[1], color='success', inverse=True)),
+                                dbc.Col(dbc.Card(card_content[3], color='dark', inverse=True)),
+                            ],
+                            className='mb-4',
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(dbc.Card(card_content[4], color='primary', inverse=True)),
+                                dbc.Col(dbc.Card(card_content[5], color='secondary', inverse=True)),
+                            ],
+                            className='mb-4',
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(dbc.Card(card_content[6], color='success', inverse=True)),
+                                dbc.Col(dbc.Card(card_content[7], color='dark', inverse=True)),
+                            ],
+                            className='mb-4',
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(dbc.Card(card_content[8], color='success', inverse=True)),
+                                dbc.Col(dbc.Card(card_content[9], color='dark', inverse=True)),
+                            ],
+                            className='mb-4',
+                        ),
+                    ],
                 )
             ]
-    fig.update_layout(annotations=annotations)
+        ),
+        dcc.Location('url', refresh=False)
+    ]
+)
+
+
+card = dbc.Card(
+    [
+        dbc.CardHeader(
+            dbc.Tabs(
+                [
+                    dbc.Tab(label="KENYA NEWS", tab_id="kenya-news"),
+                    dbc.Tab(label="GLOBAL NEWS", tab_id="global-news"),
+                ],
+                id="card-tabs-app3",
+                card=True,
+                active_tab="kenya-news",
+            )
+        ),
+        dbc.CardBody(
+            html.Div(
+                id="card-content-app3", className="card-text"
+            ),
+        ),
+    ]
+)
+
+
+@app.callback(
+    Output("card-content-app3", "children"),
+    [Input("card-tabs-app3", "active_tab")]
+)
+def tab_content_app3(active_tab):
+    return "This is tab {}".format(active_tab)
+
+
+def ke_card_template(i_d, header, title):
+    ke_card_temp = [
+        dbc.CardHeader(header),
+        dbc.CardBody(
+            [
+                html.H5(title, className='card-title'),
+                dcc.Graph(figure=ke_fig(i_d), id=i_d),
+            ]
+        )
+    ]
+    return ke_card_temp
+
+
+def ke_fig(i_d):
+    if i_d == 'confirmed-graph':
+        x, y = ke_axes_confirmed()
+        name = 'KE Confirmed Cases'
+    elif i_d == 'recoveries-graph':
+        x, y = ke_axes_recoveries()
+        name = 'KE Confirmed Recoveries '
+    elif i_d == 'deaths-graph':
+        x, y = ke_axes_deaths()
+        name = 'KE confirmed Deaths'
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=x, y=y, name=name, line=dict(color='firebrick', width=4),
+        )
+    ),
+    fig.update_layout(
+        xaxis_title='Number of Days',
+        yaxis_title='Cases confirmed',
+    )
 
     return fig
 
 
-@app.callback(
-    Output("histogram2", "figure"),
-    [
-        Input("county-dropdown", "value"),
-        Input("sub-county-dropdown", "value"),
-    ]
-)
-def update_graph_for_recoveries(country, sub):
-    if country is None:
-        text = "GRAPH OF RECOVERIES<br>Comaparison of Kenya and US"
-        country = 'US'
-    elif country is not None and sub is None:
-        text = f"GRAPH OF RECOVERIES<br>Comparison of Kenaya and {country}"
-    else:
-        text = f"Comparison of Kenya and {country}, {sub}"
+ke_headers = ['KENYAN CASES', 'KENYAN CASES', 'KENYAN CASES']
+ke_titles = ['Confirmed', 'Recoveries', 'Deaths']
+ids = ['confirmed-graph', 'recoveries-graph', 'deaths-graph']
+ke_graphs = [ke_card_template(i_d, ke_header, ke_title) for i_d, ke_header, ke_title in zip(ids, ke_headers, ke_titles)]
 
-    title = "GRAPH FOR RECOVERIES CASES"
-    labels = [f"{country}", "Kenya"]
-    colors = ['rgb(49,130,189)', 'red']
-    mode_size = [8, 12]
-    line_size = [2, 4]
 
-    # Chosen country
-    row, col = get_first_date(country)
-    x_axis, y = get_axes(row, col, recovered_global)
-    y_axis,mean, std_div = normalize_axis(y)
+app.layout = html.Div(
+    className='bg-dark',
+    children=[
+        header_for_the_page(),
+        html.Div(
+            dbc.Card(
+                className='bg-dark',
+                children=[
+                    dbc.CardHeader(
+                        children=[
+                            dbc.Tabs(
+                                [
+                                    dbc.Tab(label='HOME', tab_id='home', className='text-primary'),
+                                    dbc.Tab(label='GRAPHS', tab_id='graphs', className='text-success'),
+                                    dbc.Tab(label='NEWS', tab_id='news', className='text-info')
+                                ],
+                                id='card-tabs',
+                                card=True,
+                                active_tab='home',
+                            ),
 
-    # Kenya
-    row, col = get_first_date("Kenya")
-    ke_x_axis, y = get_axes(row, col, recovered_global)
-    ke_y_axis, ke_mean, ke_std_div = normalize_axis(y)
-
-    mean_data = [mean, ke_mean]
-    std_data = [std_div, ke_std_div]
-
-    x_data = [x_axis, ke_x_axis]
-    y_data = [y_axis, ke_y_axis]
-
-    fig = go.Figure()
-
-    for i in range(len(y_data)):
-        fig.add_trace(go.Scatter(
-            x=x_data[i], y=y_data[i], mode='lines',
-            name=labels[i],
-            line=dict(color=colors[i], width=line_size[i]),
-            connectgaps=True,
-        ))
-        # endpoints
-        fig.add_trace(
-            go.Scatter(
-                x=[x_data[i][0], x_data[i][-1]],
-                y=[y_data[i][0], y_data[-1]],
-                mode='markers',
-                marker=dict(color=colors[i], size=mode_size[i])
-            )
-        )
-        fig.update_layout(
-            xaxis=dict(
-                showline=True,
-                showgrid=False,
-                showticklabels=True,
-                linecolor='rgb(204, 204, 204)',
-                linewidth=2,
-                ticks='outside',
-                tickfont=dict(
-                    family='Arial',
-                    size=12,
-                    color='rgb(82, 82, 82)',
-                ),
-            ),
-            yaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                showline=False,
-                showticklabels=False,
-            ),
-            autosize=False,
-            margin=dict(
-                autoexpand=False,
-                l=20,
-                r=20,
-                pad=4,
-                t=20,
-            ),
-            showlegend=True,
-            plot_bgcolor="#323130",
-            paper_bgcolor="#323130",
-            height=400,
-        )
-
-        for y_trace, label, color, m, std in zip(y_data, labels, colors, mean_data, std_data):
-            annotations = [
-
-                # Title of the graph
-                dict(
-                    xref='paper',
-
-                    yref='paper',
-                    x=0.0,
-                    y=1.05,
-                    xanchor='left',
-                    yanchor='top',
-                    text=text,
-                    font=dict(
-                        family='Open Sans',
-                        size=12,
-                        color='#d8d8d8'
+                        ],
+                        style={'background': 'black'},
                     ),
-                    showarrow=False
-                ),
-                # Labeling the right side of the plot
-                dict(
-                    xref='paper',
-                    x=0.95,
-                    y=y_trace[-1],
-                    xanchor='left',
-                    yanchor='middle',
-                    text='{} cases'.format(y_trace[-1]),
-                    font=dict(
-                        family='Arial',
-                        size=16,
-                        color='rgb(150, 150, 150)',
-
+                    dbc.CardBody(
+                        html.Div(id='card-content', className='card-text'),
                     ),
-                    showarrow=False
+                ],
+                style={
+                    "margin-left": "4%",
+                    "margin-right": "4%",
+                    "border": "none",
+                },
+            ),
+        ),
+        html.Div(
+            style={
+                "margin-left": "4%",
+                "margin-right": "4%",
+            },
+            className='text-center',
+            children=[
+                dbc.Row(
+                    [
+                        dbc.Col(dbc.Card(ke_graphs[0], color='primary', inverse=True, className='twelve columns'), width=4),
+                        dbc.Col(dbc.Card(ke_graphs[1], color='secondary', inverse=True, className='twelve columns'), width=4),
+                        dbc.Col(dbc.Card(ke_graphs[2], color='info', inverse=True, className='twelve columns'), width=4),
+                    ]
                 )
             ]
-    fig.update_layout(annotations=annotations)
-
-    return fig
+        )
+    ]
+)
 
 
 @app.callback(
-    Output("histogram3", "figure"),
+    Output('card-content', 'children'),
     [
-        Input("county-dropdown", "value"),
-        Input("sub-county-dropdown", "value"),
+        Input('card-tabs', 'active_tab')
     ]
 )
-def update_graph_for_deaths(country, sub):
-    if country is None:
-        text = "GRAPH FOR DEATHS<br>Comaparison of Kenya and US"
-        country = 'US'
-    elif country is not None and sub is None:
-        text = f"Comparison of Kenaya and {country}"
-    else:
-        text = f"Comparison of Kenya and {country}, {sub}"
-
-    title = "GRAPH FOR RECOVERIES CASES"
-    labels = [f"{country}", "Kenya"]
-    colors = ['rgb(49,130,189)', 'red']
-    mode_size = [8, 12]
-    line_size = [2, 4]
-
-    # Chosen country
-    row, col = get_first_date(country)
-    x_axis, y = get_axes(row, col, deaths_global)
-    y_axis,mean, std_div = normalize_axis(y)
-
-    # Kenya
-    row, col = get_first_date("Kenya")
-    ke_x_axis, y = get_axes(row, col, deaths_global)
-    ke_y_axis, ke_mean, ke_std_div = normalize_axis(y)
-
-    mean_data = [mean, ke_mean]
-    std_data = [std_div, ke_std_div]
-
-    x_data = [x_axis, ke_x_axis]
-    y_data = [y_axis, ke_y_axis]
-
-    fig = go.Figure()
-
-    for i in range(len(y_data)):
-        fig.add_trace(go.Scatter(
-            x=x_data[i], y=y_data[i], mode='lines',
-            name=labels[i],
-            line=dict(color=colors[i], width=line_size[i]),
-            connectgaps=True,
-        ))
-        # endpoints
-        fig.add_trace(
-            go.Scatter(
-                x=[x_data[i][0], x_data[i][-1]],
-                y=[y_data[i][0], y_data[-1]],
-                mode='markers',
-                marker=dict(color=colors[i], size=mode_size[i])
-            )
-        )
-        fig.update_layout(
-            xaxis=dict(
-                showline=True,
-                showgrid=False,
-                showticklabels=True,
-                linecolor='rgb(204, 204, 204)',
-                linewidth=2,
-                ticks='outside',
-                tickfont=dict(
-                    family='Arial',
-                    size=12,
-                    color='rgb(82, 82, 82)',
-                ),
-            ),
-            yaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                showline=False,
-                showticklabels=False,
-            ),
-            autosize=False,
-            margin=dict(
-                autoexpand=False,
-                l=20,
-                r=20,
-                pad=4,
-                t=20,
-            ),
-            showlegend=True,
-            plot_bgcolor="#323130",
-            paper_bgcolor="#323130",
-            height=400,
-        )
-
-        for y_trace, label, color, m, std in zip(y_data, labels, colors, mean_data, std_data):
-            annotations = [
-
-                # Title of the graph
-                dict(
-                    xref='paper',
-
-                    yref='paper',
-                    x=0.0,
-                    y=1.05,
-                    xanchor='left',
-                    yanchor='top',
-                    text=text,
-                    font=dict(
-                        family='Open Sans',
-                        size=12,
-                        color='#d8d8d8'
-                    ),
-                    showarrow=False
-                ),
-                # Labeling the right side of the plot
-                dict(
-                    xref='paper',
-                    x=0.95,
-                    y=y_trace[-1],
-                    xanchor='left',
-                    yanchor='middle',
-                    text='{} cases'.format(y_trace[-1]),
-                    font=dict(
-                        family='Arial',
-                        size=16,
-                        color='rgb(150, 150, 150)',
-
-                    ),
-                    showarrow=False
-                )
-            ]
-    fig.update_layout(annotations=annotations)
-
-    return fig
+def tab_content(active_tab):
+    if active_tab == 'home':
+        return layout1
+    elif active_tab == 'graphs':
+        return layout2
+    elif active_tab == 'news':
+        return card
 
 
 if __name__ == "__main__":
-    app.run_server(debug=False)
-
+    app.run_server(debug=True)

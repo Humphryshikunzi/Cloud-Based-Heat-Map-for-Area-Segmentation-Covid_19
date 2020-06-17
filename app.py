@@ -179,7 +179,7 @@ def show_24_hours_r():
     today = get_today(recovered_global)
     yesterday = get_prev_date(recovered_global)
     _, _, r_index = get_kenya_index_from_global(confirmed_global, deaths_global, recovered_global)
-    difference = recovered_global.loc[d_index, today] - recovered_global.loc[d_index, yesterday]
+    difference = recovered_global.loc[r_index, today] - recovered_global.loc[r_index, yesterday]
     return f"+{difference} as of yesterday"
 
 
